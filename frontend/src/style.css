@@ -1,0 +1,76 @@
+@import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #4F46E5;
+  --color-primary-hover: #6366F1;
+  --color-background-dark: #0F172A;
+  --color-background-light: #F8FAFC;
+}
+
+@layer base {
+  :root {
+    --bg-color: var(--color-background-light);
+    --text-color: #0f172a;
+    --surface-color: rgba(255, 255, 255, 0.7);
+    --border-color: #e2e8f0;
+  }
+
+  html.dark {
+    --bg-color: var(--color-background-dark);
+    --text-color: #f8fafc;
+    --surface-color: rgba(30, 41, 59, 0.7);
+    --border-color: #334155;
+  }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background-color: var(--surface-color);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+@media print {
+  /* Hide navigation sidebar and top header */
+  aside,
+  header,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset layout constraints for printing */
+  html, body {
+    background-color: white !important;
+    color: black !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Reset outer layout container heights/scrolls to prevent clipping */
+  div.h-screen {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  div.overflow-hidden {
+    overflow: visible !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+}
+

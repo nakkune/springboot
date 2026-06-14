@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.workspace.mapper.WorkspaceMapper">
+
+    <resultMap id="WorkspaceResultMap" type="com.nak.backend.workspace.dto.WorkspaceDto">
+        <id property="id" column="id" />
+        <result property="name" column="name" />
+        <result property="slug" column="slug" />
+        <result property="logoUrl" column="logo_url" />
+        <result property="plan" column="plan" />
+        <result property="ownerId" column="owner_id" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findAll" resultMap="WorkspaceResultMap">
+        SELECT * FROM workspaces ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="WorkspaceResultMap">
+        SELECT * FROM workspaces WHERE id = #{id}::uuid
+    </select>
+
+    <select id="findBySlug" resultMap="WorkspaceResultMap">
+        SELECT * FROM workspaces WHERE slug = #{slug}
+    </select>
+
+    <select id="findAllByUserId" resultMap="WorkspaceResultMap">
+        SELECT w.*
+        FROM workspaces w
+        INNER JOIN workspace_members wm ON w.id = wm.workspace_id
+        WHERE wm.user_id = #{userId}::uuid
+          AND wm.role IN ('owner', 'member')
+        ORDER BY w.created_at DESC
+    </select>
+
+    <insert id="insert">
+        INSERT INTO workspaces (id, name, slug, logo_url, plan, owner_id, created_at, updated_at)
+        VALUES (
+            #{id}::uuid,
+            #{name},
+            #{slug},
+            #{logoUrl},
+            #{plan},
+            #{ownerId}::uuid,
+            COALESCE(#{createdAt}, NOW()),
+            COALESCE(#{updatedAt}, NOW())
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE workspaces
+        SET name = #{name},
+            slug = #{slug},
+            logo_url = #{logoUrl},
+            plan = #{plan},
+            owner_id = #{ownerId}::uuid,
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM workspaces WHERE id = #{id}::uuid
+    </delete>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM workspaces
+    </select>
+
+</mapper>

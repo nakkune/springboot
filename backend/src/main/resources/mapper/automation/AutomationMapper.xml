@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.automation.mapper.AutomationMapper">
+
+    <resultMap id="AutomationResultMap" type="com.nak.backend.automation.dto.AutomationDto">
+        <id property="id" column="id" />
+        <result property="boardId" column="board_id" />
+        <result property="name" column="name" />
+        <result property="isActive" column="is_active" />
+        <result property="triggerConfig" column="trigger_config" />
+        <result property="conditionConfig" column="condition_config" />
+        <result property="actionConfig" column="action_config" />
+        <result property="runCount" column="run_count" />
+        <result property="lastRunAt" column="last_run_at" />
+        <result property="createdBy" column="created_by" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findByBoardId" resultMap="AutomationResultMap">
+        SELECT * FROM automations 
+        WHERE board_id = CAST(#{boardId} AS UUID)
+        ORDER BY created_at DESC
+    </select>
+    
+    <select id="findById" resultMap="AutomationResultMap">
+        SELECT * FROM automations 
+        WHERE id = CAST(#{id} AS UUID)
+    </select>
+
+    <insert id="insertAutomation" parameterType="com.nak.backend.automation.dto.AutomationDto">
+        <selectKey keyProperty="id" resultType="java.lang.String" order="BEFORE">
+            SELECT uuid_generate_v4()
+        </selectKey>
+        INSERT INTO automations (
+            id, board_id, name, is_active, trigger_config, condition_config, action_config, created_by
+        ) VALUES (
+            CAST(#{id} AS UUID), 
+            CAST(#{boardId} AS UUID), 
+            #{name}, 
+            #{isActive}, 
+            CAST(#{triggerConfig} AS JSONB), 
+            CAST(#{conditionConfig} AS JSONB), 
+            CAST(#{actionConfig} AS JSONB), 
+            CAST(#{createdBy} AS UUID)
+        )
+    </insert>
+
+    <update id="updateAutomation" parameterType="com.nak.backend.automation.dto.AutomationDto">
+        UPDATE automations 
+        SET name = #{name}, 
+            is_active = #{isActive},
+            trigger_config = CAST(#{triggerConfig} AS JSONB),
+            condition_config = CAST(#{conditionConfig} AS JSONB),
+            action_config = CAST(#{actionConfig} AS JSONB),
+            updated_at = NOW()
+        WHERE id = CAST(#{id} AS UUID)
+    </update>
+    
+    <update id="updateRunStatus">
+        UPDATE automations 
+        SET run_count = run_count + 1,
+            last_run_at = NOW()
+        WHERE id = CAST(#{id} AS UUID)
+    </update>
+
+    <delete id="deleteAutomation">
+        DELETE FROM automations WHERE id = CAST(#{id} AS UUID)
+    </delete>
+
+</mapper>

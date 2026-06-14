@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.user.mapper.UserMapper">
+
+    <resultMap id="UserResultMap" type="com.nak.backend.user.dto.UserDto">
+        <id property="id" column="id" />
+        <result property="email" column="email" />
+        <result property="passwordHash" column="password_hash" />
+        <result property="fullName" column="full_name" />
+        <result property="avatarUrl" column="avatar_url" />
+        <result property="timezone" column="timezone" />
+        <result property="role" column="role" />
+        <result property="memberStatus" column="member_status" />
+        <result property="theme" column="theme" />
+        <result property="isActive" column="is_active" />
+        <result property="lastLoginAt" column="last_login_at" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findAll" resultMap="UserResultMap">
+        SELECT * FROM users ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="UserResultMap">
+        SELECT * FROM users WHERE id = #{id}::uuid
+    </select>
+
+    <select id="findByFullName" resultMap="UserResultMap">
+        SELECT * FROM users WHERE full_name LIKE '%' || #{fullName} || '%' ORDER BY created_at DESC
+    </select>
+
+    <insert id="insert">
+        INSERT INTO users (id, email, password_hash, full_name, avatar_url, timezone, role, member_status, theme, is_active, last_login_at, created_at, updated_at)
+        VALUES (
+            #{id}::uuid,
+            #{email},
+            #{passwordHash},
+            #{fullName},
+            #{avatarUrl},
+            #{timezone},
+            #{role},
+            #{memberStatus},
+            #{theme},
+            #{isActive},
+            #{lastLoginAt},
+            COALESCE(#{createdAt}, NOW()),
+            COALESCE(#{updatedAt}, NOW())
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE users
+        SET email = #{email},
+            password_hash = #{passwordHash},
+            full_name = #{fullName},
+            avatar_url = #{avatarUrl},
+            timezone = #{timezone},
+            role = #{role},
+            member_status = #{memberStatus},
+            theme = #{theme},
+            is_active = #{isActive},
+            last_login_at = #{lastLoginAt},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM users WHERE id = #{id}::uuid
+    </delete>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM users
+    </select>
+
+    <select id="findByEmail" resultMap="UserResultMap">
+        SELECT * FROM users WHERE email = #{email}
+    </select>
+
+</mapper>

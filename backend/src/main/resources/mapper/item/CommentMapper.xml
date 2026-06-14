@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.item.mapper.CommentMapper">
+
+    <resultMap id="CommentResultMap" type="com.nak.backend.item.dto.CommentDto">
+        <id property="id" column="id" />
+        <result property="itemId" column="item_id" />
+        <result property="parentId" column="parent_id" />
+        <result property="authorId" column="author_id" />
+        <result property="body" column="body" />
+        <result property="isEdited" column="is_edited" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+        
+        <result property="authorName" column="author_name" />
+        <result property="authorAvatarUrl" column="author_avatar_url" />
+    </resultMap>
+
+    <select id="findByItemId" resultMap="CommentResultMap">
+        SELECT c.*, u.full_name as author_name, u.avatar_url as author_avatar_url
+        FROM comments c
+        JOIN users u ON c.author_id = u.id
+        WHERE c.item_id = CAST(#{itemId} AS UUID)
+        ORDER BY c.created_at ASC
+    </select>
+    
+    <select id="findById" resultMap="CommentResultMap">
+        SELECT c.*, u.full_name as author_name, u.avatar_url as author_avatar_url
+        FROM comments c
+        JOIN users u ON c.author_id = u.id
+        WHERE c.id = CAST(#{id} AS UUID)
+    </select>
+
+    <insert id="insertComment" parameterType="com.nak.backend.item.dto.CommentDto">
+        <!-- UUID를 반환받기 위한 selectKey -->
+        <selectKey keyProperty="id" resultType="java.lang.String" order="BEFORE">
+            SELECT uuid_generate_v4()
+        </selectKey>
+        INSERT INTO comments (
+            id, item_id, parent_id, author_id, body, is_edited
+        ) VALUES (
+            CAST(#{id} AS UUID), 
+            CAST(#{itemId} AS UUID), 
+            <choose><when test="parentId != null">CAST(#{parentId} AS UUID)</when><otherwise>NULL</otherwise></choose>, 
+            CAST(#{authorId} AS UUID), 
+            #{body}, 
+            FALSE
+        )
+    </insert>
+
+    <update id="updateComment" parameterType="com.nak.backend.item.dto.CommentDto">
+        UPDATE comments 
+        SET body = #{body}, 
+            is_edited = TRUE,
+            updated_at = NOW()
+        WHERE id = CAST(#{id} AS UUID)
+    </update>
+    
+    <delete id="deleteComment">
+        DELETE FROM comments WHERE id = CAST(#{id} AS UUID)
+    </delete>
+    
+    <insert id="insertCommentMention">
+        INSERT INTO comment_mentions (comment_id, mentioned_user)
+        VALUES (CAST(#{commentId} AS UUID), CAST(#{mentionedUserId} AS UUID))
+    </insert>
+
+</mapper>

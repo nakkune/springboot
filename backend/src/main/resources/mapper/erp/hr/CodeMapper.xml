@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.erp.hr.mapper.CodeMapper">
+
+    <resultMap id="codeResultMap" type="com.nak.backend.erp.hr.dto.CodeDto">
+        <id property="id" column="id"/>
+        <result property="codeGroup" column="code_group"/>
+        <result property="codeGroupName" column="code_group_name"/>
+        <result property="code" column="code"/>
+        <result property="label" column="label"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="baseColumns">
+        id, code_group, code_group_name, code, label,
+        sort_order, is_active, created_at, updated_at
+    </sql>
+
+    <select id="findByGroup" resultMap="codeResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_codes
+        WHERE code_group = #{codeGroup}
+        ORDER BY sort_order ASC, code ASC
+    </select>
+
+    <select id="findAll" resultMap="codeResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_codes
+        ORDER BY code_group, sort_order ASC, code ASC
+    </select>
+
+    <select id="findGroups" resultType="com.nak.backend.erp.hr.dto.CodeGroupDto">
+        SELECT code_group, code_group_name
+        FROM erp_codes
+        GROUP BY code_group, code_group_name
+        ORDER BY MIN(sort_order) ASC, code_group ASC
+    </select>
+
+    <select id="findById" resultMap="codeResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_codes
+        WHERE id = #{id}::uuid
+    </select>
+
+    <select id="findByGroupAndCode" resultMap="codeResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_codes
+        WHERE code_group = #{codeGroup}
+          AND code = #{code}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.nak.backend.erp.hr.dto.CodeDto">
+        INSERT INTO erp_codes (id, code_group, code_group_name, code, label,
+                               sort_order, is_active, created_at, updated_at)
+        VALUES (
+            #{id}::uuid, #{codeGroup}, #{codeGroupName}, #{code}, #{label},
+            #{sortOrder}, #{isActive}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.nak.backend.erp.hr.dto.CodeDto">
+        UPDATE erp_codes
+        SET code            = #{code},
+            code_group_name = #{codeGroupName},
+            label           = #{label},
+            sort_order      = #{sortOrder},
+            is_active       = #{isActive},
+            updated_at      = #{updatedAt}
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM erp_codes WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

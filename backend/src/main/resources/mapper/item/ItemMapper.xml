@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.item.mapper.ItemMapper">
+
+    <resultMap id="ItemResultMap" type="com.nak.backend.item.dto.ItemDto">
+        <id property="id" column="id" />
+        <result property="boardId" column="board_id" />
+        <result property="groupId" column="group_id" />
+        <result property="parentItemId" column="parent_item_id" />
+        <result property="name" column="name" />
+        <result property="position" column="position" />
+        <result property="isArchived" column="is_archived" />
+        <result property="createdBy" column="created_by" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findAllByBoardId" resultMap="ItemResultMap">
+        SELECT * FROM items WHERE board_id = #{boardId}::uuid ORDER BY position ASC, created_at DESC
+    </select>
+
+    <select id="findAllByGroupId" resultMap="ItemResultMap">
+        SELECT * FROM items WHERE group_id = #{groupId}::uuid ORDER BY position ASC, created_at DESC
+    </select>
+
+    <select id="findAllByParentItemId" resultMap="ItemResultMap">
+        SELECT * FROM items WHERE parent_item_id = #{parentItemId}::uuid ORDER BY position ASC, created_at DESC
+    </select>
+
+    <select id="findById" resultMap="ItemResultMap">
+        SELECT * FROM items WHERE id = #{id}::uuid
+    </select>
+
+    <insert id="insert">
+        INSERT INTO items (id, board_id, group_id, parent_item_id, name, position, is_archived, created_by, created_at, updated_at)
+        VALUES (
+            #{id}::uuid,
+            #{boardId}::uuid,
+            #{groupId}::uuid,
+            <choose>
+                <when test="parentItemId != null and parentItemId != ''">#{parentItemId}::uuid</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            #{name},
+            #{position},
+            #{isArchived},
+            #{createdBy}::uuid,
+            COALESCE(#{createdAt}, NOW()),
+            COALESCE(#{updatedAt}, NOW())
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE items
+        SET name = #{name},
+            group_id = #{groupId}::uuid,
+            parent_item_id = <choose>
+                                <when test="parentItemId != null and parentItemId != ''">#{parentItemId}::uuid</when>
+                                <otherwise>NULL</otherwise>
+                             </choose>,
+            position = #{position},
+            is_archived = #{isArchived},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM items WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

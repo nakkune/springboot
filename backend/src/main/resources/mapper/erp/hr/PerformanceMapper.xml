@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.erp.hr.mapper.PerformanceMapper">
+
+    <resultMap id="performanceResultMap" type="com.nak.backend.erp.hr.dto.PerformanceReviewDto">
+        <id property="id" column="id"/>
+        <result property="employeeId" column="employee_id"/>
+        <result property="employeeName" column="employee_name"/>
+        <result property="employeeNo" column="employee_no"/>
+        <result property="reviewerId" column="reviewer_id"/>
+        <result property="reviewerName" column="reviewer_name"/>
+        <result property="reviewYear" column="review_year"/>
+        <result property="reviewPeriod" column="review_period"/>
+        <result property="ratings" column="ratings" typeHandler="com.nak.backend.config.mybatis.JsonbTypeHandler"/>
+        <result property="totalScore" column="total_score"/>
+        <result property="comment" column="comment"/>
+        <result property="status" column="status"/>
+        <result property="submittedAt" column="submitted_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="baseColumns">
+        r.id, r.employee_id,
+        eu.full_name AS employee_name, e.employee_no,
+        r.reviewer_id, revu.full_name AS reviewer_name,
+        r.review_year, r.review_period, r.ratings,
+        r.total_score, r.comment, r.status, r.submitted_at,
+        r.created_at, r.updated_at
+    </sql>
+
+    <sql id="fromClause">
+        FROM erp_performance_reviews r
+        LEFT JOIN erp_employees e ON r.employee_id = e.id
+        LEFT JOIN users eu ON e.email = eu.email
+        LEFT JOIN erp_employees rev ON r.reviewer_id = rev.id
+        LEFT JOIN users revu ON rev.email = revu.email
+    </sql>
+
+    <sql id="whereClause">
+        <where>
+            <if test="employeeId != null and employeeId != ''">
+                AND r.employee_id = #{employeeId}::uuid
+            </if>
+            <if test="reviewYear != null">
+                AND r.review_year = #{reviewYear}
+            </if>
+            <if test="reviewPeriod != null and reviewPeriod != ''">
+                AND r.review_period = #{reviewPeriod}
+            </if>
+            <if test="status != null and status != ''">
+                AND r.status = #{status}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findAll" resultMap="performanceResultMap">
+        SELECT <include refid="baseColumns"/>
+        <include refid="fromClause"/>
+        <include refid="whereClause"/>
+        ORDER BY r.review_year DESC, e.employee_no ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*)
+        FROM erp_performance_reviews r
+        <include refid="whereClause"/>
+    </select>
+
+    <select id="findByEmployeeId" resultMap="performanceResultMap">
+        SELECT <include refid="baseColumns"/>
+        <include refid="fromClause"/>
+        WHERE r.employee_id = #{employeeId}::uuid
+        ORDER BY r.review_year DESC, r.review_period ASC
+    </select>
+
+    <select id="findById" resultMap="performanceResultMap">
+        SELECT <include refid="baseColumns"/>
+        <include refid="fromClause"/>
+        WHERE r.id = #{id}::uuid
+    </select>
+
+    <insert id="insert" parameterType="com.nak.backend.erp.hr.dto.PerformanceReviewDto">
+        INSERT INTO erp_performance_reviews (
+            id, employee_id, reviewer_id,
+            review_year, review_period, ratings, total_score, comment,
+            status, submitted_at, created_at, updated_at
+        ) VALUES (
+            #{id}::uuid, #{employeeId}::uuid, #{reviewerId}::uuid,
+            #{reviewYear}, #{reviewPeriod}, #{ratings,typeHandler=com.nak.backend.config.mybatis.JsonbTypeHandler},
+            #{totalScore}, #{comment}, #{status}, #{submittedAt},
+            NOW(), NOW()
+        )
+    </insert>
+
+    <update id="update" parameterType="com.nak.backend.erp.hr.dto.PerformanceReviewDto">
+        UPDATE erp_performance_reviews
+        SET employee_id   = #{employeeId}::uuid,
+            reviewer_id   = #{reviewerId}::uuid,
+            review_year   = #{reviewYear},
+            review_period = #{reviewPeriod},
+            ratings       = #{ratings,typeHandler=com.nak.backend.config.mybatis.JsonbTypeHandler},
+            total_score   = #{totalScore},
+            comment       = #{comment},
+            updated_at    = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <update id="updateStatus">
+        UPDATE erp_performance_reviews
+        SET status       = #{status},
+            submitted_at = CASE WHEN #{status} = 'submitted' THEN NOW() ELSE NULL END,
+            updated_at   = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM erp_performance_reviews WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

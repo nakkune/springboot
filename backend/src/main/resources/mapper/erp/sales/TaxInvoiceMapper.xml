@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nak.backend.erp.sales.mapper.TaxInvoiceMapper">
+
+    <resultMap id="taxInvoiceResultMap" type="com.nak.backend.erp.sales.dto.TaxInvoiceDto">
+        <id property="id" column="id"/>
+        <result property="issueId" column="issue_id"/>
+        <result property="writeDate" column="write_date"/>
+        <result property="supplierRegNo" column="supplier_reg_no"/>
+        <result property="supplierSubNo" column="supplier_sub_no"/>
+        <result property="supplierName" column="supplier_name"/>
+        <result property="supplierCeo" column="supplier_ceo"/>
+        <result property="supplierAddress" column="supplier_address"/>
+        <result property="supplierBizType" column="supplier_biz_type"/>
+        <result property="supplierBizItem" column="supplier_biz_item"/>
+        <result property="supplierEmail" column="supplier_email"/>
+        <result property="customerRegNo" column="customer_reg_no"/>
+        <result property="customerSubNo" column="customer_sub_no"/>
+        <result property="customerName" column="customer_name"/>
+        <result property="customerCeo" column="customer_ceo"/>
+        <result property="customerAddress" column="customer_address"/>
+        <result property="customerBizType" column="customer_biz_type"/>
+        <result property="customerBizItem" column="customer_biz_item"/>
+        <result property="customerEmail1" column="customer_email1"/>
+        <result property="totalSupplyValue" column="total_supply_value"/>
+        <result property="totalTaxValue" column="total_tax_value"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="purpose" column="purpose"/>
+        <result property="status" column="status"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="taxInvoiceItemResultMap" type="com.nak.backend.erp.sales.dto.TaxInvoiceDto$TaxInvoiceItemDto">
+        <id property="id" column="id"/>
+        <result property="taxInvoiceId" column="tax_invoice_id"/>
+        <result property="itemDate" column="item_date"/>
+        <result property="itemName" column="item_name"/>
+        <result property="spec" column="spec"/>
+        <result property="qty" column="qty"/>
+        <result property="unitPrice" column="unit_price"/>
+        <result property="supplyValue" column="supply_value"/>
+        <result property="taxValue" column="tax_value"/>
+        <result property="remarks" column="remarks"/>
+        <result property="sortOrder" column="sort_order"/>
+    </resultMap>
+
+    <select id="findAllTaxInvoices" resultMap="taxInvoiceResultMap">
+        SELECT *
+        FROM erp_tax_invoices
+        ORDER BY write_date DESC, created_at DESC
+    </select>
+
+    <select id="findTaxInvoiceById" resultMap="taxInvoiceResultMap">
+        SELECT *
+        FROM erp_tax_invoices
+        WHERE id = #{id}::uuid
+    </select>
+
+    <select id="findTaxInvoiceItemsByTaxInvoiceId" resultMap="taxInvoiceItemResultMap">
+        SELECT *
+        FROM erp_tax_invoice_items
+        WHERE tax_invoice_id = #{taxInvoiceId}::uuid
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <insert id="insertTaxInvoice" parameterType="com.nak.backend.erp.sales.dto.TaxInvoiceDto">
+        INSERT INTO erp_tax_invoices (
+            id, issue_id, write_date,
+            supplier_reg_no, supplier_sub_no, supplier_name, supplier_ceo, supplier_address, supplier_biz_type, supplier_biz_item, supplier_email,
+            customer_reg_no, customer_sub_no, customer_name, customer_ceo, customer_address, customer_biz_type, customer_biz_item, customer_email1,
+            total_supply_value, total_tax_value, total_amount, purpose, status,
+            created_by, created_at, updated_at
+        ) VALUES (
+            #{id}::uuid, #{issueId}, #{writeDate}::date,
+            #{supplierRegNo}, #{supplierSubNo}, #{supplierName}, #{supplierCeo}, #{supplierAddress}, #{supplierBizType}, #{supplierBizItem}, #{supplierEmail},
+            #{customerRegNo}, #{customerSubNo}, #{customerName}, #{customerCeo}, #{customerAddress}, #{customerBizType}, #{customerBizItem}, #{customerEmail1},
+            #{totalSupplyValue}, #{totalTaxValue}, #{totalAmount}, #{purpose}, #{status},
+            #{createdBy}::uuid, NOW(), NOW()
+        )
+    </insert>
+
+    <insert id="insertTaxInvoiceItem" parameterType="com.nak.backend.erp.sales.dto.TaxInvoiceDto$TaxInvoiceItemDto">
+        INSERT INTO erp_tax_invoice_items (
+            id, tax_invoice_id, item_date, item_name, spec, qty, unit_price, supply_value, tax_value, remarks, sort_order
+        ) VALUES (
+            #{id}::uuid, #{taxInvoiceId}::uuid, #{itemDate}, #{itemName}, #{spec}, #{qty}, #{unitPrice}, #{supplyValue}, #{taxValue}, #{remarks}, #{sortOrder}
+        )
+    </insert>
+
+    <update id="updateTaxInvoice" parameterType="com.nak.backend.erp.sales.dto.TaxInvoiceDto">
+        UPDATE erp_tax_invoices
+        SET write_date = #{writeDate}::date,
+            supplier_reg_no = #{supplierRegNo},
+            supplier_sub_no = #{supplierSubNo},
+            supplier_name = #{supplierName},
+            supplier_ceo = #{supplierCeo},
+            supplier_address = #{supplierAddress},
+            supplier_biz_type = #{supplierBizType},
+            supplier_biz_item = #{supplierBizItem},
+            supplier_email = #{supplierEmail},
+            customer_reg_no = #{customerRegNo},
+            customer_sub_no = #{customerSubNo},
+            customer_name = #{customerName},
+            customer_ceo = #{customerCeo},
+            customer_address = #{customerAddress},
+            customer_biz_type = #{customerBizType},
+            customer_biz_item = #{customerBizItem},
+            customer_email1 = #{customerEmail1},
+            total_supply_value = #{totalSupplyValue},
+            total_tax_value = #{totalTaxValue},
+            total_amount = #{totalAmount},
+            purpose = #{purpose},
+            status = #{status},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteTaxInvoiceById">
+        DELETE FROM erp_tax_invoices
+        WHERE id = #{id}::uuid
+    </delete>
+
+    <delete id="deleteTaxInvoiceItemsByTaxInvoiceId">
+        DELETE FROM erp_tax_invoice_items
+        WHERE tax_invoice_id = #{taxInvoiceId}::uuid
+    </delete>
+
+    <select id="countTaxInvoicesByDate" resultType="int">
+        SELECT COUNT(*)::int
+        FROM erp_tax_invoices
+        WHERE write_date = #{writeDate}::date
+    </select>
+
+</mapper>

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nak.backend.erp.sales.mapper.QuotationMapper">
+
+    <resultMap id="quotationResultMap" type="com.nak.backend.erp.sales.dto.QuotationDto">
+        <id property="id" column="id"/>
+        <result property="quotationNo" column="quotation_no"/>
+        <result property="title" column="title"/>
+        <result property="quoteDate" column="quote_date"/>
+        <result property="validDate" column="valid_date"/>
+        <result property="supplierRegNo" column="supplier_reg_no"/>
+        <result property="supplierName" column="supplier_name"/>
+        <result property="supplierCeo" column="supplier_ceo"/>
+        <result property="supplierAddress" column="supplier_address"/>
+        <result property="supplierBizType" column="supplier_biz_type"/>
+        <result property="supplierBizItem" column="supplier_biz_item"/>
+        <result property="customerName" column="customer_name"/>
+        <result property="customerCeo" column="customer_ceo"/>
+        <result property="totalSupplyValue" column="total_supply_value"/>
+        <result property="totalTaxValue" column="total_tax_value"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="remarks" column="remarks"/>
+        <result property="status" column="status"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="quotationItemResultMap" type="com.nak.backend.erp.sales.dto.QuotationDto$QuotationItemDto">
+        <id property="id" column="id"/>
+        <result property="quotationId" column="quotation_id"/>
+        <result property="itemName" column="item_name"/>
+        <result property="spec" column="spec"/>
+        <result property="qty" column="qty"/>
+        <result property="unitPrice" column="unit_price"/>
+        <result property="supplyValue" column="supply_value"/>
+        <result property="taxValue" column="tax_value"/>
+        <result property="remarks" column="remarks"/>
+        <result property="sortOrder" column="sort_order"/>
+    </resultMap>
+
+    <select id="findAllQuotations" resultMap="quotationResultMap">
+        SELECT *
+        FROM erp_quotations
+        ORDER BY quote_date DESC, created_at DESC
+    </select>
+
+    <select id="findQuotationById" resultMap="quotationResultMap">
+        SELECT *
+        FROM erp_quotations
+        WHERE id = #{id}::uuid
+    </select>
+
+    <select id="findQuotationItemsByQuotationId" resultMap="quotationItemResultMap">
+        SELECT *
+        FROM erp_quotation_items
+        WHERE quotation_id = #{quotationId}::uuid
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <insert id="insertQuotation" parameterType="com.nak.backend.erp.sales.dto.QuotationDto">
+        INSERT INTO erp_quotations (
+            id, quotation_no, title, quote_date, valid_date,
+            supplier_reg_no, supplier_name, supplier_ceo, supplier_address,
+            supplier_biz_type, supplier_biz_item, customer_name, customer_ceo,
+            total_supply_value, total_tax_value, total_amount, remarks, status,
+            created_by, created_at, updated_at
+        ) VALUES (
+            #{id}::uuid, #{quotationNo}, #{title}, #{quoteDate}::date, #{validDate}::date,
+            #{supplierRegNo}, #{supplierName}, #{supplierCeo}, #{supplierAddress},
+            #{supplierBizType}, #{supplierBizItem}, #{customerName}, #{customerCeo},
+            #{totalSupplyValue}, #{totalTaxValue}, #{totalAmount}, #{remarks}, #{status},
+            #{createdBy}::uuid, NOW(), NOW()
+        )
+    </insert>
+
+    <insert id="insertQuotationItem" parameterType="com.nak.backend.erp.sales.dto.QuotationDto$QuotationItemDto">
+        INSERT INTO erp_quotation_items (
+            id, quotation_id, item_name, spec, qty, unit_price, supply_value, tax_value, remarks, sort_order
+        ) VALUES (
+            #{id}::uuid, #{quotationId}::uuid, #{itemName}, #{spec}, #{qty}, #{unitPrice}, #{supplyValue}, #{taxValue}, #{remarks}, #{sortOrder}
+        )
+    </insert>
+
+    <update id="updateQuotation" parameterType="com.nak.backend.erp.sales.dto.QuotationDto">
+        UPDATE erp_quotations
+        SET title = #{title},
+            quote_date = #{quoteDate}::date,
+            valid_date = #{validDate}::date,
+            supplier_reg_no = #{supplierRegNo},
+            supplier_name = #{supplierName},
+            supplier_ceo = #{supplierCeo},
+            supplier_address = #{supplierAddress},
+            supplier_biz_type = #{supplierBizType},
+            supplier_biz_item = #{supplierBizItem},
+            customer_name = #{customerName},
+            customer_ceo = #{customerCeo},
+            total_supply_value = #{totalSupplyValue},
+            total_tax_value = #{totalTaxValue},
+            total_amount = #{totalAmount},
+            remarks = #{remarks},
+            status = #{status},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteQuotationById">
+        DELETE FROM erp_quotations
+        WHERE id = #{id}::uuid
+    </delete>
+
+    <delete id="deleteQuotationItemsByQuotationId">
+        DELETE FROM erp_quotation_items
+        WHERE quotation_id = #{quotationId}::uuid
+    </delete>
+
+    <select id="countQuotationsByDate" resultType="int">
+        SELECT COUNT(*)::int
+        FROM erp_quotations
+        WHERE quote_date = #{quoteDate}::date
+    </select>
+
+</mapper>

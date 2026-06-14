@@ -1,0 +1,542 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.erp.hr.mapper.PayrollMapper">
+
+    <!-- ============================================================= -->
+    <!-- 1. 신규 ERP 5대 핵심 도메인 ResultMaps                       -->
+    <!-- ============================================================= -->
+    
+    <!-- 급여대장 ResultMap -->
+    <resultMap id="ledgerResultMap" type="com.nak.backend.erp.hr.dto.PayrollDto$PayrollLedgerDto">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="payYear" column="pay_year"/>
+        <result property="payMonth" column="pay_month"/>
+        <result property="payDate" column="pay_date"/>
+        <result property="payType" column="pay_type"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="status" column="status"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <!-- 집계 산출 필드 -->
+        <result property="totalGross" column="total_gross"/>
+        <result property="totalDeduction" column="total_deduction"/>
+        <result property="totalNet" column="total_net"/>
+        <result property="employeeCount" column="employee_count"/>
+    </resultMap>
+
+    <!-- 급여코드 ResultMap -->
+    <resultMap id="codeResultMap" type="com.nak.backend.erp.hr.dto.PayrollDto$PayrollCodeDto">
+        <id property="code" column="code"/>
+        <result property="name" column="name"/>
+        <result property="type" column="type"/>
+        <result property="isTaxable" column="is_taxable"/>
+        <result property="taxFreeLimit" column="tax_free_limit"/>
+        <result property="isSystem" column="is_system"/>
+        <result property="isActive" column="is_active"/>
+        <result property="sortOrder" column="sort_order"/>
+    </resultMap>
+
+    <!-- 사원 계약 템플릿 ResultMap -->
+    <resultMap id="templateResultMap" type="com.nak.backend.erp.hr.dto.PayrollDto$SalaryTemplateDto">
+        <id property="employeeId" column="employee_id"/>
+        <result property="employeeName" column="employee_name"/>
+        <result property="employeeNo" column="employee_no"/>
+        <result property="departmentName" column="department_name"/>
+        <result property="basePay" column="base_pay"/>
+        <result property="positionPay" column="position_pay"/>
+        <result property="mealAllowance" column="meal_allowance"/>
+        <result property="carAllowance" column="car_allowance"/>
+        <result property="useNationalPension" column="use_national_pension"/>
+        <result property="useHealthInsurance" column="use_health_insurance"/>
+        <result property="useEmploymentInsurance" column="use_employment_insurance"/>
+        <result property="incomeTaxRate" column="income_tax_rate"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 사원별 급여 마스터 ResultMap (Nested Collection) -->
+    <resultMap id="itemResultMap" type="com.nak.backend.erp.hr.dto.PayrollDto$PayrollItemDto">
+        <id property="id" column="id"/>
+        <result property="ledgerId" column="ledger_id"/>
+        <result property="employeeId" column="employee_id"/>
+        <result property="employeeName" column="employee_name"/>
+        <result property="employeeNo" column="employee_no"/>
+        <result property="departmentName" column="department_name"/>
+        <result property="position" column="position"/>
+        <result property="grossPay" column="gross_pay"/>
+        <result property="totalDeduction" column="total_deduction"/>
+        <result property="netPay" column="net_pay"/>
+        <result property="bankName" column="bank_name"/>
+        <result property="bankAccount" column="bank_account"/>
+        <result property="bankOwner" column="bank_owner"/>
+        <result property="status" column="status"/>
+        <result property="memo" column="memo"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <!-- 1:N 지급/공제 상세 목록 바인딩 -->
+        <collection property="details" ofType="com.nak.backend.erp.hr.dto.PayrollDto$PayrollDetailDto" resultMap="detailResultMap" columnPrefix="detail_"/>
+    </resultMap>
+
+    <!-- 개별 수당/공제 상세 ResultMap -->
+    <resultMap id="detailResultMap" type="com.nak.backend.erp.hr.dto.PayrollDto$PayrollDetailDto">
+        <id property="id" column="id"/>
+        <result property="payrollItemId" column="payroll_item_id"/>
+        <result property="code" column="code"/>
+        <result property="name" column="name"/>
+        <result property="type" column="type"/>
+        <result property="amount" column="amount"/>
+        <result property="isTaxable" column="is_taxable"/>
+    </resultMap>
+
+    <!-- ============================================================= -->
+    <!-- 2. 신규 급여대장 (Payroll Ledger) SQL                          -->
+    <!-- ============================================================= -->
+    
+    <select id="findAllLedgers" resultMap="ledgerResultMap">
+        SELECT l.*,
+               COALESCE(SUM(i.gross_pay), 0) AS total_gross,
+               COALESCE(SUM(i.total_deduction), 0) AS total_deduction,
+               COALESCE(SUM(i.net_pay), 0) AS total_net,
+               COUNT(i.id)::int AS employee_count
+        FROM erp_payroll_ledgers l
+        LEFT JOIN erp_payroll_items i ON l.id = i.ledger_id
+        WHERE 1=1
+          <if test="payYear != null">
+              AND l.pay_year = #{payYear}
+          </if>
+          <if test="payMonth != null">
+              AND l.pay_month = #{payMonth}
+          </if>
+          <if test="status != null and status != ''">
+              AND l.status = #{status}
+          </if>
+        GROUP BY l.id
+        ORDER BY l.pay_year DESC, l.pay_month DESC, l.created_at DESC
+    </select>
+
+    <select id="findLedgerById" resultMap="ledgerResultMap">
+        SELECT l.*,
+               COALESCE(SUM(i.gross_pay), 0) AS total_gross,
+               COALESCE(SUM(i.total_deduction), 0) AS total_deduction,
+               COALESCE(SUM(i.net_pay), 0) AS total_net,
+               COUNT(i.id)::int AS employee_count
+        FROM erp_payroll_ledgers l
+        LEFT JOIN erp_payroll_items i ON l.id = i.ledger_id
+        WHERE l.id = #{id}::uuid
+        GROUP BY l.id
+    </select>
+
+    <insert id="insertLedger" parameterType="com.nak.backend.erp.hr.dto.PayrollDto$PayrollLedgerDto">
+        INSERT INTO erp_payroll_ledgers (
+            id, title, pay_year, pay_month, pay_date, pay_type, start_date, end_date, status, created_by, created_at, updated_at
+        ) VALUES (
+            #{id}::uuid, #{title}, #{payYear}, #{payMonth}, #{payDate}::date, #{payType}, #{startDate}::date, #{endDate}::date, #{status}, #{createdBy}::uuid, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateLedger" parameterType="com.nak.backend.erp.hr.dto.PayrollDto$PayrollLedgerDto">
+        UPDATE erp_payroll_ledgers
+        SET title = #{title},
+            pay_date = #{payDate}::date,
+            pay_type = #{payType},
+            start_date = #{startDate}::date,
+            end_date = #{endDate}::date,
+            status = #{status},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <update id="updateLedgerStatus">
+        UPDATE erp_payroll_ledgers
+        SET status = #{status},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteLedgerById">
+        DELETE FROM erp_payroll_ledgers WHERE id = #{id}::uuid
+    </delete>
+
+    <!-- ============================================================= -->
+    <!-- 3. 급여 수당/공제 코드 (Payroll Code) SQL                      -->
+    <!-- ============================================================= -->
+    
+    <select id="findAllCodes" resultMap="codeResultMap">
+        SELECT 
+            code,
+            label AS name,
+            CASE WHEN code_group = 'PAY_ALLOWANCE' THEN 'allowance' ELSE 'deduction' END AS type,
+            CASE WHEN code IN ('MEAL', 'CAR', 'PENSION', 'HEALTH', 'LTC', 'EMP', 'INCOME_TAX', 'LOCAL_TAX') THEN false ELSE true END AS is_taxable,
+            CASE WHEN code = 'MEAL' THEN 200000.00 WHEN code = 'CAR' THEN 200000.00 ELSE 0.00 END AS tax_free_limit,
+            CASE WHEN code IN ('BASE', 'MEAL', 'CAR', 'PENSION', 'HEALTH', 'LTC', 'EMP', 'INCOME_TAX', 'LOCAL_TAX') THEN true ELSE false END AS is_system,
+            is_active,
+            sort_order
+        FROM erp_codes
+        WHERE code_group IN ('PAY_ALLOWANCE', 'PAY_DEDUCTION')
+        ORDER BY code_group ASC, sort_order ASC
+    </select>
+
+    <select id="findCodeByCode" resultMap="codeResultMap">
+        SELECT 
+            code,
+            label AS name,
+            CASE WHEN code_group = 'PAY_ALLOWANCE' THEN 'allowance' ELSE 'deduction' END AS type,
+            CASE WHEN code IN ('MEAL', 'CAR', 'PENSION', 'HEALTH', 'LTC', 'EMP', 'INCOME_TAX', 'LOCAL_TAX') THEN false ELSE true END AS is_taxable,
+            CASE WHEN code = 'MEAL' THEN 200000.00 WHEN code = 'CAR' THEN 200000.00 ELSE 0.00 END AS tax_free_limit,
+            CASE WHEN code IN ('BASE', 'MEAL', 'CAR', 'PENSION', 'HEALTH', 'LTC', 'EMP', 'INCOME_TAX', 'LOCAL_TAX') THEN true ELSE false END AS is_system,
+            is_active,
+            sort_order
+        FROM erp_codes
+        WHERE code = #{code} AND code_group IN ('PAY_ALLOWANCE', 'PAY_DEDUCTION')
+        LIMIT 1
+    </select>
+
+    <insert id="insertCode" parameterType="com.nak.backend.erp.hr.dto.PayrollDto$PayrollCodeDto">
+        INSERT INTO erp_codes (
+            id, code_group, code_group_name, code, label, sort_order, is_active, created_at, updated_at
+        ) VALUES (
+            uuid_generate_v4(),
+            CASE WHEN #{type} = 'allowance' THEN 'PAY_ALLOWANCE' ELSE 'PAY_DEDUCTION' END,
+            CASE WHEN #{type} = 'allowance' THEN '지급항목' ELSE '공제항목' END,
+            #{code},
+            #{name},
+            #{sortOrder},
+            #{isActive},
+            NOW(),
+            NOW()
+        )
+    </insert>
+
+    <update id="updateCode" parameterType="com.nak.backend.erp.hr.dto.PayrollDto$PayrollCodeDto">
+        UPDATE erp_codes
+        SET label = #{name},
+            sort_order = #{sortOrder},
+            is_active = #{isActive},
+            updated_at = NOW()
+        WHERE code = #{code} AND code_group IN ('PAY_ALLOWANCE', 'PAY_DEDUCTION')
+    </update>
+
+    <delete id="deleteCodeByCode">
+        DELETE FROM erp_codes WHERE code = #{code} AND code_group IN ('PAY_ALLOWANCE', 'PAY_DEDUCTION')
+    </delete>
+
+    <!-- ============================================================= -->
+    <!-- 4. 급여계약 템플릿 (Salary Template) SQL                      -->
+    <!-- ============================================================= -->
+    
+    <select id="findAllTemplates" resultMap="templateResultMap">
+        SELECT t.*, u.full_name AS employee_name, e.employee_no, d.name AS department_name
+        FROM erp_salary_templates t
+        JOIN erp_employees e ON t.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_departments d ON e.department_id = d.id
+        WHERE e.status = 'active'
+        ORDER BY e.employee_no ASC
+    </select>
+
+    <select id="findTemplateByEmployeeId" resultMap="templateResultMap">
+        SELECT t.*, u.full_name AS employee_name, e.employee_no, d.name AS department_name
+        FROM erp_salary_templates t
+        JOIN erp_employees e ON t.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_departments d ON e.department_id = d.id
+        WHERE t.employee_id = #{employeeId}::uuid
+    </select>
+
+    <insert id="insertTemplate" parameterType="com.nak.backend.erp.hr.dto.PayrollDto$SalaryTemplateDto">
+        INSERT INTO erp_salary_templates (
+            employee_id, base_pay, position_pay, meal_allowance, car_allowance,
+            use_national_pension, use_health_insurance, use_employment_insurance, income_tax_rate, created_at, updated_at
+        ) VALUES (
+            #{employeeId}::uuid, #{basePay}, #{positionPay}, #{mealAllowance}, #{carAllowance},
+            #{useNationalPension}, #{useHealthInsurance}, #{useEmploymentInsurance}, #{incomeTaxRate}, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateTemplate" parameterType="com.nak.backend.erp.hr.dto.PayrollDto$SalaryTemplateDto">
+        UPDATE erp_salary_templates
+        SET base_pay = #{basePay},
+            position_pay = #{positionPay},
+            meal_allowance = #{mealAllowance},
+            car_allowance = #{carAllowance},
+            use_national_pension = #{useNationalPension},
+            use_health_insurance = #{useHealthInsurance},
+            use_employment_insurance = #{useEmploymentInsurance},
+            income_tax_rate = #{incomeTaxRate},
+            updated_at = NOW()
+        WHERE employee_id = #{employeeId}::uuid
+    </update>
+
+    <delete id="deleteTemplateByEmployeeId">
+        DELETE FROM erp_salary_templates WHERE employee_id = #{employeeId}::uuid
+    </delete>
+
+    <!-- ============================================================= -->
+    <!-- 5. 급여대장 사원 항목 및 상세 (Payroll Item / Detail) SQL      -->
+    <!-- ============================================================= -->
+    
+    <select id="findItemsByLedgerId" resultMap="itemResultMap">
+        SELECT i.*, u.full_name AS employee_name, e.employee_no, d.name AS department_name, e.position,
+               det.id AS detail_id, det.payroll_item_id AS detail_payroll_item_id, det.code AS detail_code,
+               c.name AS detail_name, c.type AS detail_type, det.amount AS detail_amount, det.is_taxable AS detail_is_taxable
+        FROM erp_payroll_items i
+        JOIN erp_employees e ON i.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_departments d ON e.department_id = d.id
+        LEFT JOIN erp_payroll_details det ON i.id = det.payroll_item_id
+        LEFT JOIN erp_payroll_codes c ON det.code = c.code
+        WHERE i.ledger_id = #{ledgerId}::uuid
+        ORDER BY e.employee_no ASC, c.sort_order ASC
+    </select>
+
+    <select id="findItemById" resultMap="itemResultMap">
+        SELECT i.*, u.full_name AS employee_name, e.employee_no, d.name AS department_name, e.position,
+               det.id AS detail_id, det.payroll_item_id AS detail_payroll_item_id, det.code AS detail_code,
+               c.name AS detail_name, c.type AS detail_type, det.amount AS detail_amount, det.is_taxable AS detail_is_taxable
+        FROM erp_payroll_items i
+        JOIN erp_employees e ON i.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_departments d ON e.department_id = d.id
+        LEFT JOIN erp_payroll_details det ON i.id = det.payroll_item_id
+        LEFT JOIN erp_payroll_codes c ON det.code = c.code
+        WHERE i.id = #{id}::uuid
+        ORDER BY c.sort_order ASC
+    </select>
+
+    <select id="findItemByLedgerAndEmployee" resultMap="itemResultMap">
+        SELECT i.*, u.full_name AS employee_name, e.employee_no, d.name AS department_name, e.position,
+               det.id AS detail_id, det.payroll_item_id AS detail_payroll_item_id, det.code AS detail_code,
+               c.name AS detail_name, c.type AS detail_type, det.amount AS detail_amount, det.is_taxable AS detail_is_taxable
+        FROM erp_payroll_items i
+        JOIN erp_employees e ON i.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_departments d ON e.department_id = d.id
+        LEFT JOIN erp_payroll_details det ON i.id = det.payroll_item_id
+        LEFT JOIN erp_payroll_codes c ON det.code = c.code
+        WHERE i.ledger_id = #{ledgerId}::uuid AND i.employee_id = #{employeeId}::uuid
+        ORDER BY c.sort_order ASC
+    </select>
+
+    <insert id="insertItem" parameterType="com.nak.backend.erp.hr.dto.PayrollDto$PayrollItemDto">
+        INSERT INTO erp_payroll_items (
+            id, ledger_id, employee_id, gross_pay, total_deduction, net_pay, bank_name, bank_account, bank_owner, status, memo, created_at, updated_at
+        ) VALUES (
+            #{id}::uuid, #{ledgerId}::uuid, #{employeeId}::uuid, #{grossPay}, #{totalDeduction}, #{netPay}, #{bankName}, #{bankAccount}, #{bankOwner}, #{status}, #{memo}, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateItem" parameterType="com.nak.backend.erp.hr.dto.PayrollDto$PayrollItemDto">
+        UPDATE erp_payroll_items
+        SET gross_pay = #{grossPay},
+            total_deduction = #{totalDeduction},
+            net_pay = #{netPay},
+            bank_name = #{bankName},
+            bank_account = #{bankAccount},
+            bank_owner = #{bankOwner},
+            status = #{status},
+            memo = #{memo},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteItemById">
+        DELETE FROM erp_payroll_items WHERE id = #{id}::uuid
+    </delete>
+
+    <delete id="deleteItemsByLedgerId">
+        DELETE FROM erp_payroll_items WHERE ledger_id = #{ledgerId}::uuid
+    </delete>
+
+    <!-- 개별 수당/공제 상세 SQL -->
+    <select id="findDetailsByItemId" resultMap="detailResultMap">
+        SELECT d.*, c.name, c.type
+        FROM erp_payroll_details d
+        JOIN erp_payroll_codes c ON d.code = c.code
+        WHERE d.payroll_item_id = #{payrollItemId}::uuid
+        ORDER BY c.sort_order ASC
+    </select>
+
+    <insert id="insertDetail" parameterType="com.nak.backend.erp.hr.dto.PayrollDto$PayrollDetailDto">
+        INSERT INTO erp_payroll_details (
+            id, payroll_item_id, code, amount, is_taxable, created_at
+        ) VALUES (
+            #{id}::uuid, #{payrollItemId}::uuid, #{code}, #{amount}, #{isTaxable}, NOW()
+        )
+        ON CONFLICT (payroll_item_id, code) DO UPDATE
+        SET amount = EXCLUDED.amount,
+            is_taxable = EXCLUDED.is_taxable
+    </insert>
+
+    <delete id="deleteDetailsByItemId">
+        DELETE FROM erp_payroll_details WHERE payroll_item_id = #{payrollItemId}::uuid
+    </delete>
+
+    <insert id="insertDetailsBulk" parameterType="java.util.List">
+        INSERT INTO erp_payroll_details (id, payroll_item_id, code, amount, is_taxable, created_at)
+        VALUES
+        <foreach collection="details" item="det" separator=",">
+            (#{det.id}::uuid, #{det.payrollItemId}::uuid, #{det.code}, #{det.amount}, #{det.isTaxable}, NOW())
+        </foreach>
+        ON CONFLICT (payroll_item_id, code) DO UPDATE
+        SET amount = EXCLUDED.amount,
+            is_taxable = EXCLUDED.is_taxable
+    </insert>
+
+    <!-- ============================================================= -->
+    <!-- 6. [호환성 보존] 레거시 erp_payrolls 기반 SQL                   -->
+    <!-- ============================================================= -->
+    
+    <resultMap id="payrollResultMap" type="com.nak.backend.erp.hr.dto.PayrollDto">
+        <id property="id" column="id"/>
+        <result property="employeeId" column="employee_id"/>
+        <result property="employeeName" column="employee_name"/>
+        <result property="employeeNo" column="employee_no"/>
+        <result property="departmentName" column="department_name"/>
+        <result property="payYear" column="pay_year"/>
+        <result property="payMonth" column="pay_month"/>
+        <result property="payDate" column="pay_date"/>
+        <result property="basePay" column="base_pay"/>
+        <result property="positionPay" column="position_pay"/>
+        <result property="overtimePay" column="overtime_pay"/>
+        <result property="bonusPay" column="bonus_pay"/>
+        <result property="mealAllowance" column="meal_allowance"/>
+        <result property="transportation" column="transportation"/>
+        <result property="incomeTax" column="income_tax"/>
+        <result property="localTax" column="local_tax"/>
+        <result property="nationalPension" column="national_pension"/>
+        <result property="healthInsurance" column="health_insurance"/>
+        <result property="employmentInsurance" column="employment_insurance"/>
+        <result property="longtermCare" column="longterm_care"/>
+        <result property="grossPay" column="gross_pay"/>
+        <result property="totalDeduction" column="total_deduction"/>
+        <result property="netPay" column="net_pay"/>
+        <result property="status" column="status"/>
+        <result property="confirmedBy" column="confirmed_by"/>
+        <result property="confirmedAt" column="confirmed_at"/>
+        <result property="memo" column="memo"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="baseColumns">
+        p.id, p.employee_id, u.full_name AS employee_name, e.employee_no,
+        d.name AS department_name,
+        p.pay_year, p.pay_month, p.pay_date,
+        p.base_pay, p.position_pay, p.overtime_pay, p.bonus_pay,
+        p.meal_allowance, p.transportation,
+        p.income_tax, p.local_tax, p.national_pension, p.health_insurance,
+        p.employment_insurance, p.longterm_care,
+        p.gross_pay, p.total_deduction, p.net_pay,
+        p.status, p.confirmed_by, p.confirmed_at, p.memo,
+        p.created_by, p.created_at, p.updated_at
+    </sql>
+
+    <select id="findAll" resultMap="payrollResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_payrolls p
+        LEFT JOIN erp_employees e ON p.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_departments d ON e.department_id = d.id
+        <where>
+            <if test="payYear != null">
+                AND p.pay_year = #{payYear}
+            </if>
+            <if test="payMonth != null">
+                AND p.pay_month = #{payMonth}
+            </if>
+            <if test="status != null and status != ''">
+                AND p.status = #{status}
+            </if>
+        </where>
+        ORDER BY p.pay_year DESC, p.pay_month DESC, e.employee_no ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*)
+        FROM erp_payrolls p
+        <where>
+            <if test="payYear != null">
+                AND p.pay_year = #{payYear}
+            </if>
+            <if test="payMonth != null">
+                AND p.pay_month = #{payMonth}
+            </if>
+            <if test="status != null and status != ''">
+                AND p.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="findByEmployeeId" resultMap="payrollResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_payrolls p
+        LEFT JOIN erp_employees e ON p.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_departments d ON e.department_id = d.id
+        WHERE p.employee_id = #{employeeId}::uuid
+        ORDER BY p.pay_year DESC, p.pay_month DESC
+    </select>
+
+    <select id="findById" resultMap="payrollResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_payrolls p
+        LEFT JOIN erp_employees e ON p.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_departments d ON e.department_id = d.id
+        WHERE p.id = #{id}::uuid
+    </select>
+
+    <insert id="insert" parameterType="com.nak.backend.erp.hr.dto.PayrollDto">
+        INSERT INTO erp_payrolls (
+            id, employee_id, pay_year, pay_month, pay_date,
+            base_pay, position_pay, overtime_pay, bonus_pay, meal_allowance, transportation,
+            income_tax, local_tax, national_pension, health_insurance, employment_insurance, longterm_care,
+            gross_pay, total_deduction, net_pay, status, memo, created_by, created_at, updated_at
+        ) VALUES (
+            #{id}::uuid, #{employeeId}::uuid, #{payYear}, #{payMonth}, #{payDate}::date,
+            #{basePay}, #{positionPay}, #{overtimePay}, #{bonusPay}, #{mealAllowance}, #{transportation},
+            #{incomeTax}, #{localTax}, #{nationalPension}, #{healthInsurance}, #{employmentInsurance}, #{longtermCare},
+            #{grossPay}, #{totalDeduction}, #{netPay}, #{status}, #{memo}, #{createdBy}::uuid, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="update" parameterType="com.nak.backend.erp.hr.dto.PayrollDto">
+        UPDATE erp_payrolls
+        SET base_pay           = #{basePay},
+            position_pay       = #{positionPay},
+            overtime_pay       = #{overtimePay},
+            bonus_pay          = #{bonusPay},
+            meal_allowance     = #{mealAllowance},
+            transportation     = #{transportation},
+            income_tax         = #{incomeTax},
+            local_tax          = #{localTax},
+            national_pension   = #{nationalPension},
+            health_insurance   = #{healthInsurance},
+            employment_insurance = #{employmentInsurance},
+            longterm_care      = #{longtermCare},
+            gross_pay          = #{grossPay},
+            total_deduction    = #{totalDeduction},
+            net_pay            = #{netPay},
+            memo               = #{memo},
+            updated_at         = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <update id="updateStatus">
+        UPDATE erp_payrolls
+        SET status       = #{status},
+            confirmed_by = #{confirmedBy}::uuid,
+            confirmed_at = CASE WHEN #{status} IN ('confirmed','paid') THEN NOW() ELSE NULL END,
+            updated_at   = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM erp_payrolls WHERE id = #{id}::uuid
+    </delete>
+</mapper>

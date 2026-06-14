@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.erp.hr.mapper.DepartmentMapper">
+
+    <resultMap id="departmentResultMap" type="com.nak.backend.erp.hr.dto.DepartmentDto">
+        <id property="id" column="id"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="managerId" column="manager_id"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="baseColumns">
+        id, parent_id, name, code, manager_id,
+        sort_order, is_active, created_at, updated_at
+    </sql>
+
+    <select id="findAll" resultMap="departmentResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_departments
+        ORDER BY sort_order ASC, name ASC
+    </select>
+
+    <select id="findById" resultMap="departmentResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_departments
+        WHERE id = #{id}::uuid
+    </select>
+
+    <select id="findByName" resultMap="departmentResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_departments
+        WHERE name = #{name}
+        LIMIT 1
+    </select>
+
+    <select id="findByParentId" resultMap="departmentResultMap">
+        SELECT <include refid="baseColumns"/>
+        FROM erp_departments
+        WHERE parent_id = #{parentId}::uuid
+        ORDER BY sort_order ASC, name ASC
+    </select>
+
+    <insert id="insert" parameterType="com.nak.backend.erp.hr.dto.DepartmentDto">
+        INSERT INTO erp_departments (id, parent_id, name, code, manager_id,
+                                     sort_order, is_active, created_at, updated_at)
+        VALUES (
+            #{id}::uuid, #{parentId}::uuid,
+            #{name}, #{code}, #{managerId}::uuid,
+            #{sortOrder}, #{isActive}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.nak.backend.erp.hr.dto.DepartmentDto">
+        UPDATE erp_departments
+        SET parent_id   = #{parentId}::uuid,
+            name        = #{name},
+            code        = #{code},
+            manager_id  = #{managerId}::uuid,
+            sort_order  = #{sortOrder},
+            is_active   = #{isActive},
+            updated_at  = #{updatedAt}
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM erp_departments WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.notification.mapper.NotificationMapper">
+
+    <resultMap id="NotificationResultMap" type="com.nak.backend.notification.dto.NotificationDto">
+        <id property="id" column="id" />
+        <result property="recipientId" column="recipient_id" />
+        <result property="senderId" column="sender_id" />
+        <result property="type" column="type" />
+        <result property="title" column="title" />
+        <result property="body" column="body" />
+        <result property="refType" column="ref_type" />
+        <result property="refId" column="ref_id" />
+        <result property="isRead" column="is_read" />
+        <result property="createdAt" column="created_at" />
+    </resultMap>
+
+    <select id="findByRecipientId" resultMap="NotificationResultMap">
+        SELECT * FROM notifications 
+        WHERE recipient_id = CAST(#{recipientId} AS UUID) 
+        ORDER BY created_at DESC
+        LIMIT 50
+    </select>
+
+    <insert id="insertNotification" parameterType="com.nak.backend.notification.dto.NotificationDto">
+        INSERT INTO notifications (
+            recipient_id, sender_id, type, title, body, ref_type, ref_id
+        ) VALUES (
+            CAST(#{recipientId} AS UUID), 
+            <choose><when test="senderId != null">CAST(#{senderId} AS UUID)</when><otherwise>NULL</otherwise></choose>, 
+            #{type}, #{title}, #{body}, #{refType}, 
+            <choose><when test="refId != null">CAST(#{refId} AS UUID)</when><otherwise>NULL</otherwise></choose>
+        )
+    </insert>
+
+    <update id="updateIsRead">
+        UPDATE notifications 
+        SET is_read = #{isRead} 
+        WHERE id = CAST(#{id} AS UUID)
+    </update>
+
+    <select id="getUnreadCount" resultType="int">
+        SELECT COUNT(*) FROM notifications 
+        WHERE recipient_id = CAST(#{recipientId} AS UUID) AND is_read = FALSE
+    </select>
+</mapper>

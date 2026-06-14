@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.board.mapper.BoardColumnMapper">
+
+    <resultMap id="BoardColumnResultMap" type="com.nak.backend.board.dto.BoardColumnDto">
+        <id property="id" column="id" />
+        <result property="boardId" column="board_id" />
+        <result property="name" column="name" />
+        <result property="columnType" column="column_type" />
+        <result property="settings" column="settings" />
+        <result property="position" column="position" />
+        <result property="isRequired" column="is_required" />
+        <result property="isHidden" column="is_hidden" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findAllByBoardId" resultMap="BoardColumnResultMap">
+        SELECT * FROM board_columns WHERE board_id = #{boardId}::uuid ORDER BY position ASC, created_at ASC
+    </select>
+
+    <select id="findById" resultMap="BoardColumnResultMap">
+        SELECT * FROM board_columns WHERE id = #{id}::uuid
+    </select>
+
+    <insert id="insert">
+        INSERT INTO board_columns (id, board_id, name, column_type, settings, position, is_required, is_hidden, created_at, updated_at)
+        VALUES (
+            #{id}::uuid,
+            #{boardId}::uuid,
+            #{name},
+            #{columnType},
+            #{settings}::jsonb,
+            #{position},
+            #{isRequired},
+            #{isHidden},
+            COALESCE(#{createdAt}, NOW()),
+            COALESCE(#{updatedAt}, NOW())
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE board_columns
+        SET name = #{name},
+            column_type = #{columnType},
+            settings = #{settings}::jsonb,
+            position = #{position},
+            is_required = #{isRequired},
+            is_hidden = #{isHidden},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM board_columns WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

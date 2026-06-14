@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.team.mapper.TeamMapper">
+
+    <resultMap id="TeamResultMap" type="com.nak.backend.team.dto.TeamDto">
+        <id property="id" column="id" />
+        <result property="workspaceId" column="workspace_id" />
+        <result property="name" column="name" />
+        <result property="description" column="description" />
+        <result property="color" column="color" />
+        <result property="createdBy" column="created_by" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findAllByWorkspaceId" resultMap="TeamResultMap">
+        SELECT * FROM teams WHERE workspace_id = #{workspaceId}::uuid ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="TeamResultMap">
+        SELECT * FROM teams WHERE id = #{id}::uuid
+    </select>
+
+    <insert id="insert">
+        INSERT INTO teams (id, workspace_id, name, description, color, created_by, created_at, updated_at)
+        VALUES (
+            #{id}::uuid,
+            #{workspaceId}::uuid,
+            #{name},
+            #{description},
+            #{color},
+            #{createdBy}::uuid,
+            COALESCE(#{createdAt}, NOW()),
+            COALESCE(#{updatedAt}, NOW())
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE teams
+        SET name = #{name},
+            description = #{description},
+            color = #{color},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM teams WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

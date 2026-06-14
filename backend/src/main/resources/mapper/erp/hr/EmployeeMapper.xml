@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.erp.hr.mapper.EmployeeMapper">
+
+    <resultMap id="employeeResultMap" type="com.nak.backend.erp.hr.dto.EmployeeDto">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="employeeNo" column="employee_no"/>
+        <result property="departmentId" column="department_id"/>
+        <result property="departmentName" column="department_name"/>
+        <result property="employeeName" column="employee_name"/>
+        <result property="position" column="position"/>
+        <result property="jobTitle" column="job_title"/>
+        <result property="employmentType" column="employment_type"/>
+        <result property="hireDate" column="hire_date"/>
+        <result property="resignationDate" column="resignation_date"/>
+        <result property="status" column="status"/>
+        <result property="phone" column="phone"/>
+        <result property="email" column="email"/>
+        <result property="emergencyContact" column="emergency_contact"/>
+        <result property="emergencyPhone" column="emergency_phone"/>
+        <result property="bankName" column="bank_name"/>
+        <result property="bankAccount" column="bank_account"/>
+        <result property="annualLeaveDays" column="annual_leave_days"/>
+        <result property="memo" column="memo"/>
+        <result property="leaveStartDate" column="leave_start_date"/>
+        <result property="leaveEndDate" column="leave_end_date"/>
+        <result property="birthDate" column="birth_date"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="baseColumns">
+        e.id, e.user_id, u.full_name AS employee_name, e.employee_no, e.department_id,
+        d.name AS department_name,
+        e.position, e.job_title, e.employment_type, e.hire_date, e.resignation_date,
+        e.status, e.phone, e.email, e.emergency_contact, e.emergency_phone,
+        e.bank_name, e.bank_account, e.annual_leave_days, e.memo,
+        e.leave_start_date, e.leave_end_date, e.birth_date,
+        e.created_by, e.created_at, e.updated_at
+    </sql>
+
+    <sql id="fromClause">
+        FROM erp_employees e
+        LEFT JOIN erp_departments d ON e.department_id = d.id
+        LEFT JOIN users u ON e.user_id = u.id
+    </sql>
+
+    <sql id="whereClause">
+        <where>
+            <if test="departmentId != null and departmentId != ''">
+                AND e.department_id = #{departmentId}::uuid
+            </if>
+            <if test="status != null and status != ''">
+                AND e.status = #{status}
+            </if>
+            <if test="search != null and search != ''">
+                AND (
+                    e.employee_no LIKE CONCAT('%', #{search}, '%')
+                    OR u.full_name LIKE CONCAT('%', #{search}, '%')
+                )
+            </if>
+        </where>
+    </sql>
+
+    <select id="findAll" resultMap="employeeResultMap">
+        SELECT <include refid="baseColumns"/>
+        <include refid="fromClause"/>
+        <include refid="whereClause"/>
+        ORDER BY e.employee_no ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*)
+        <include refid="fromClause"/>
+        <include refid="whereClause"/>
+    </select>
+
+    <select id="findById" resultMap="employeeResultMap">
+        SELECT <include refid="baseColumns"/>
+        <include refid="fromClause"/>
+        WHERE e.id = #{id}::uuid
+    </select>
+
+    <select id="findByUserId" resultMap="employeeResultMap">
+        SELECT <include refid="baseColumns"/>
+        <include refid="fromClause"/>
+        WHERE e.user_id = #{userId}::uuid
+        LIMIT 1
+    </select>
+
+    <select id="findByEmployeeNo" resultMap="employeeResultMap">
+        SELECT <include refid="baseColumns"/>
+        <include refid="fromClause"/>
+        WHERE e.employee_no = #{employeeNo}
+        LIMIT 1
+    </select>
+
+    <select id="findLastEmployeeNoByPattern" resultType="string">
+        SELECT employee_no 
+        FROM erp_employees 
+        WHERE employee_no LIKE CONCAT(#{pattern}, '%') 
+        ORDER BY employee_no DESC 
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.nak.backend.erp.hr.dto.EmployeeDto">
+        INSERT INTO erp_employees (
+            id, user_id, employee_no, department_id,
+            position, job_title, employment_type, hire_date, resignation_date,
+            status, phone, email, emergency_contact, emergency_phone,
+            bank_name, bank_account, annual_leave_days, memo,
+            leave_start_date, leave_end_date, birth_date,
+            created_by, created_at, updated_at
+        ) VALUES (
+            #{id}::uuid, #{userId}::uuid, #{employeeNo}, #{departmentId}::uuid,
+            #{position}, #{jobTitle}, #{employmentType}, #{hireDate}::date, #{resignationDate}::date,
+            #{status}, #{phone}, #{email}, #{emergencyContact}, #{emergencyPhone},
+            #{bankName}, #{bankAccount}, #{annualLeaveDays}, #{memo},
+            #{leaveStartDate}::date, #{leaveEndDate}::date, #{birthDate}::date,
+            #{createdBy}::uuid, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.nak.backend.erp.hr.dto.EmployeeDto">
+        UPDATE erp_employees
+        SET department_id     = #{departmentId}::uuid,
+            position          = #{position},
+            job_title         = #{jobTitle},
+            employment_type   = #{employmentType},
+            hire_date         = #{hireDate}::date,
+            resignation_date  = #{resignationDate}::date,
+            status            = #{status},
+            phone             = #{phone},
+            email             = #{email},
+            emergency_contact = #{emergencyContact},
+            emergency_phone   = #{emergencyPhone},
+            bank_name         = #{bankName},
+            bank_account      = #{bankAccount},
+            annual_leave_days = #{annualLeaveDays},
+            memo              = #{memo},
+            leave_start_date  = #{leaveStartDate}::date,
+            leave_end_date    = #{leaveEndDate}::date,
+            birth_date        = #{birthDate}::date,
+            updated_at        = #{updatedAt}
+        WHERE id = #{id}::uuid
+    </update>
+
+    <update id="updateStatus">
+        UPDATE erp_employees
+        SET status = #{status}, updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM erp_employees WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

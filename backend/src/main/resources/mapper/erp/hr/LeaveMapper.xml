@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis://DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.erp.hr.mapper.LeaveMapper">
+
+    <resultMap id="leaveResultMap" type="com.nak.backend.erp.hr.dto.LeaveRequestDto">
+        <id property="id" column="id"/>
+        <result property="employeeId" column="employee_id"/>
+        <result property="employeeName" column="employee_name"/>
+        <result property="employeeNo" column="employee_no"/>
+        <result property="leaveType" column="leave_type"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="totalDays" column="total_days"/>
+        <result property="reason" column="reason"/>
+        <result property="status" column="status"/>
+        <result property="approverId" column="approver_id"/>
+        <result property="approverName" column="approver_name"/>
+        <result property="approvedAt" column="approved_at"/>
+        <result property="rejectReason" column="reject_reason"/>
+        <result property="linkedItemId" column="linked_item_id"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="balanceResultMap" type="com.nak.backend.erp.hr.dto.LeaveBalanceDto">
+        <id property="id" column="id"/>
+        <result property="employeeId" column="employee_id"/>
+        <result property="employeeName" column="employee_name"/>
+        <result property="employeeNo" column="employee_no"/>
+        <result property="year" column="year"/>
+        <result property="totalDays" column="total_days"/>
+        <result property="usedDays" column="used_days"/>
+        <result property="remainingDays" column="remaining_days"/>
+    </resultMap>
+
+    <sql id="leaveColumns">
+        lr.id, lr.employee_id, u.full_name AS employee_name, e.employee_no,
+        lr.leave_type, lr.start_date, lr.end_date, lr.total_days,
+        lr.reason, lr.status, lr.approver_id, apu.full_name AS approver_name,
+        lr.approved_at, lr.reject_reason, lr.linked_item_id,
+        lr.created_by, lr.created_at, lr.updated_at
+    </sql>
+
+    <select id="findByEmployeeId" resultMap="leaveResultMap">
+        SELECT <include refid="leaveColumns"/>
+        FROM erp_leave_requests lr
+        LEFT JOIN erp_employees e ON lr.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_employees ap ON lr.approver_id = ap.id
+        LEFT JOIN users apu ON ap.user_id = apu.id
+        WHERE lr.employee_id = #{employeeId}::uuid
+        <if test="status != null and status != ''">
+            AND lr.status = #{status}
+        </if>
+        ORDER BY lr.created_at DESC
+    </select>
+
+    <select id="findByManagerId" resultMap="leaveResultMap">
+        SELECT <include refid="leaveColumns"/>
+        FROM erp_leave_requests lr
+        LEFT JOIN erp_employees e ON lr.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_employees ap ON lr.approver_id = ap.id
+        LEFT JOIN users apu ON ap.user_id = apu.id
+        WHERE e.department_id IN (
+            SELECT id FROM erp_departments WHERE manager_id = #{managerId}::uuid
+        )
+        <if test="status != null and status != ''">
+            AND lr.status = #{status}
+        </if>
+        ORDER BY lr.created_at DESC
+    </select>
+
+    <select id="findById" resultMap="leaveResultMap">
+        SELECT <include refid="leaveColumns"/>
+        FROM erp_leave_requests lr
+        LEFT JOIN erp_employees e ON lr.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        LEFT JOIN erp_employees ap ON lr.approver_id = ap.id
+        LEFT JOIN users apu ON ap.user_id = apu.id
+        WHERE lr.id = #{id}::uuid
+    </select>
+
+    <insert id="insert" parameterType="com.nak.backend.erp.hr.dto.LeaveRequestDto">
+        INSERT INTO erp_leave_requests (id, employee_id, leave_type, start_date, end_date,
+                                        total_days, reason, status, created_by, created_at, updated_at)
+        VALUES (
+            #{id}::uuid, #{employeeId}::uuid, #{leaveType}, #{startDate}::date, #{endDate}::date,
+            #{totalDays}, #{reason}, #{status}, #{createdBy}::uuid, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="update" parameterType="com.nak.backend.erp.hr.dto.LeaveRequestDto">
+        UPDATE erp_leave_requests
+        SET leave_type    = #{leaveType},
+            start_date    = #{startDate}::date,
+            end_date      = #{endDate}::date,
+            total_days    = #{totalDays},
+            reason        = #{reason},
+            updated_at    = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <update id="updateStatus">
+        UPDATE erp_leave_requests
+        SET status       = #{status},
+            approver_id  = #{approverId}::uuid,
+            approved_at  = CASE WHEN #{status} IN ('approved','rejected') THEN NOW() ELSE NULL END,
+            reject_reason = #{rejectReason},
+            updated_at   = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM erp_leave_requests WHERE id = #{id}::uuid
+    </delete>
+
+    <!-- Leave Balance -->
+    <select id="findBalance" resultMap="balanceResultMap">
+        SELECT lb.id, lb.employee_id, u.full_name AS employee_name, e.employee_no,
+               lb.year, lb.total_days, lb.used_days, lb.remaining_days
+        FROM erp_leave_balances lb
+        LEFT JOIN erp_employees e ON lb.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        WHERE lb.employee_id = #{employeeId}::uuid AND lb.year = #{year}
+        LIMIT 1
+    </select>
+
+    <insert id="upsertBalance" parameterType="com.nak.backend.erp.hr.dto.LeaveBalanceDto">
+        INSERT INTO erp_leave_balances (id, employee_id, year, total_days, used_days, remaining_days, created_at, updated_at)
+        VALUES (
+            #{id}::uuid, #{employeeId}::uuid, #{year}, #{totalDays}, #{usedDays}, #{remainingDays}, NOW(), NOW()
+        )
+        ON CONFLICT (employee_id, year)
+        DO UPDATE SET
+            used_days = #{usedDays},
+            remaining_days = #{remainingDays},
+            updated_at = NOW()
+    </insert>
+</mapper>

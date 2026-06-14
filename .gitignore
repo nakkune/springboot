@@ -1,0 +1,18 @@
+# System Files
+.DS_Store
+Thumbs.db
+*~
+*.swp
+
+# IDEs / Project Settings
+.idea/
+.vscode/
+.omo/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# General Logs
+*.log

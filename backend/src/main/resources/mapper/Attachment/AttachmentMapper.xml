@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.attachment.mapper.AttachmentMapper">
+
+    <select id="findByItemId" resultType="com.nak.backend.attachment.dto.AttachmentDto">
+        SELECT 
+            a.id,
+            a.item_id as itemId,
+            a.comment_id as commentId,
+            a.uploader_id as uploaderId,
+            a.file_name as fileName,
+            a.file_size as fileSize,
+            a.mime_type as mimeType,
+            a.storage_url as storageUrl,
+            CAST(a.created_at AS TIMESTAMP) as createdAt,
+            u.full_name as uploaderName
+        FROM attachments a
+        JOIN users u ON a.uploader_id = u.id
+        WHERE a.item_id = CAST(#{itemId} AS UUID)
+        ORDER BY a.created_at DESC
+    </select>
+
+    <insert id="insertAttachment" parameterType="com.nak.backend.attachment.dto.AttachmentDto">
+        <selectKey keyProperty="id" resultType="String" order="BEFORE">
+            SELECT uuid_generate_v4()
+        </selectKey>
+        INSERT INTO attachments (
+            id, item_id, comment_id, uploader_id, file_name, file_size, mime_type, storage_url, created_at
+        ) VALUES (
+            CAST(#{id} AS UUID),
+            <choose><when test="itemId != null">CAST(#{itemId} AS UUID)</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="commentId != null">CAST(#{commentId} AS UUID)</when><otherwise>NULL</otherwise></choose>,
+            CAST(#{uploaderId} AS UUID),
+            #{fileName},
+            #{fileSize},
+            #{mimeType},
+            #{storageUrl},
+            NOW()
+        )
+    </insert>
+
+</mapper>

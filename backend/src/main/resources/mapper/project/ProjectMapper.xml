@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.project.mapper.ProjectMapper">
+
+    <resultMap id="ProjectResultMap" type="com.nak.backend.project.dto.ProjectDto">
+        <id property="id" column="id" />
+        <result property="workspaceId" column="workspace_id" />
+        <result property="teamId" column="team_id" />
+        <result property="name" column="name" />
+        <result property="description" column="description" />
+        <result property="color" column="color" />
+        <result property="icon" column="icon" />
+        <result property="isArchived" column="is_archived" />
+        <result property="createdBy" column="created_by" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findAllByWorkspaceId" resultMap="ProjectResultMap">
+        SELECT * FROM projects WHERE workspace_id = #{workspaceId}::uuid ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="ProjectResultMap">
+        SELECT * FROM projects WHERE id = #{id}::uuid
+    </select>
+
+    <insert id="insert">
+        INSERT INTO projects (id, workspace_id, team_id, name, description, color, icon, is_archived, created_by, created_at, updated_at)
+        VALUES (
+            #{id}::uuid,
+            #{workspaceId}::uuid,
+            <choose>
+                <when test="teamId != null and teamId != ''">#{teamId}::uuid</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            #{name},
+            #{description},
+            #{color},
+            #{icon},
+            #{isArchived},
+            #{createdBy}::uuid,
+            COALESCE(#{createdAt}, NOW()),
+            COALESCE(#{updatedAt}, NOW())
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE projects
+        SET name = #{name},
+            description = #{description},
+            team_id = <choose>
+                        <when test="teamId != null and teamId != ''">#{teamId}::uuid</when>
+                        <otherwise>NULL</otherwise>
+                      </choose>,
+            color = #{color},
+            icon = #{icon},
+            is_archived = #{isArchived},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM projects WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

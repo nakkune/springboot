@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.board.mapper.BoardMapper">
+
+    <resultMap id="BoardResultMap" type="com.nak.backend.board.dto.BoardDto">
+        <id property="id" column="id" />
+        <result property="projectId" column="project_id" />
+        <result property="name" column="name" />
+        <result property="description" column="description" />
+        <result property="boardType" column="board_type" />
+        <result property="position" column="position" />
+        <result property="isArchived" column="is_archived" />
+        <result property="createdBy" column="created_by" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findAllByProjectId" resultMap="BoardResultMap">
+        SELECT * FROM boards WHERE project_id = #{projectId}::uuid ORDER BY position ASC, created_at DESC
+    </select>
+
+    <select id="findById" resultMap="BoardResultMap">
+        SELECT * FROM boards WHERE id = #{id}::uuid
+    </select>
+
+    <insert id="insert">
+        INSERT INTO boards (id, project_id, name, description, board_type, position, is_archived, created_by, created_at, updated_at)
+        VALUES (
+            #{id}::uuid,
+            #{projectId}::uuid,
+            #{name},
+            #{description},
+            #{boardType},
+            #{position},
+            #{isArchived},
+            #{createdBy}::uuid,
+            COALESCE(#{createdAt}, NOW()),
+            COALESCE(#{updatedAt}, NOW())
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE boards
+        SET name = #{name},
+            description = #{description},
+            board_type = #{boardType},
+            position = #{position},
+            is_archived = #{isArchived},
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM boards WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

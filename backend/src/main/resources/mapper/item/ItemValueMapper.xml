@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.item.mapper.ItemValueMapper">
+
+    <resultMap id="ItemValueResultMap" type="com.nak.backend.item.dto.ItemValueDto">
+        <id property="id" column="id" />
+        <result property="itemId" column="item_id" />
+        <result property="columnId" column="column_id" />
+        <result property="valueText" column="value_text" />
+        <result property="valueNumber" column="value_number" />
+        <result property="valueDate" column="value_date" />
+        <result property="valueJson" column="value_json" />
+        <result property="updatedBy" column="updated_by" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <select id="findAllByItemId" resultMap="ItemValueResultMap">
+        SELECT * FROM item_values WHERE item_id = #{itemId}::uuid ORDER BY updated_at DESC
+    </select>
+
+    <select id="findAllByBoardId" resultMap="ItemValueResultMap">
+        SELECT iv.* FROM item_values iv
+        INNER JOIN items i ON iv.item_id = i.id
+        WHERE i.board_id = #{boardId}::uuid
+        ORDER BY iv.updated_at DESC
+    </select>
+
+    <select id="findByItemAndColumn" resultMap="ItemValueResultMap">
+        SELECT * FROM item_values 
+        WHERE item_id = #{itemId}::uuid AND column_id = #{columnId}::uuid
+    </select>
+
+    <insert id="insert">
+        INSERT INTO item_values (id, item_id, column_id, value_text, value_number, value_date, value_json, updated_by, updated_at)
+        VALUES (
+            #{id}::uuid,
+            #{itemId}::uuid,
+            #{columnId}::uuid,
+            #{valueText},
+            #{valueNumber},
+            #{valueDate},
+            <choose>
+                <when test="valueJson != null and valueJson != ''">#{valueJson}::jsonb</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            <choose>
+                <when test="updatedBy != null and updatedBy != ''">#{updatedBy}::uuid</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            COALESCE(#{updatedAt}, NOW())
+        )
+        ON CONFLICT ON CONSTRAINT item_values_item_id_column_id_key
+        DO UPDATE SET
+            value_text = COALESCE(EXCLUDED.value_text, item_values.value_text),
+            value_number = COALESCE(EXCLUDED.value_number, item_values.value_number),
+            value_date = COALESCE(EXCLUDED.value_date, item_values.value_date),
+            value_json = COALESCE(EXCLUDED.value_json, item_values.value_json),
+            updated_by = COALESCE(EXCLUDED.updated_by, item_values.updated_by),
+            updated_at = NOW()
+    </insert>
+
+    <update id="update">
+        UPDATE item_values
+        SET value_text = #{valueText},
+            value_number = #{valueNumber},
+            value_date = #{valueDate},
+            value_json = <choose>
+                            <when test="valueJson != null and valueJson != ''">#{valueJson}::jsonb</when>
+                            <otherwise>NULL</otherwise>
+                         </choose>,
+            updated_by = <choose>
+                            <when test="updatedBy != null and updatedBy != ''">#{updatedBy}::uuid</when>
+                            <otherwise>NULL</otherwise>
+                         </choose>,
+            updated_at = NOW()
+        WHERE id = #{id}::uuid
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM item_values WHERE id = #{id}::uuid
+    </delete>
+
+</mapper>

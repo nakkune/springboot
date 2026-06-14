@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nak.backend.activity.mapper.ActivityLogMapper">
+
+    <select id="findByItemId" resultType="com.nak.backend.activity.dto.ActivityLogDto">
+        SELECT 
+            al.id,
+            al.workspace_id as workspaceId,
+            al.project_id as projectId,
+            al.board_id as boardId,
+            al.item_id as itemId,
+            al.actor_id as actorId,
+            al.action,
+            al.meta,
+            CAST(al.created_at AS TIMESTAMP) as createdAt,
+            u.full_name as actorName,
+            u.avatar_url as actorAvatar
+        FROM activity_logs al
+        JOIN users u ON al.actor_id = u.id
+        WHERE al.item_id = CAST(#{itemId} AS UUID)
+        ORDER BY al.created_at DESC
+    </select>
+
+    <insert id="insertActivityLog" parameterType="com.nak.backend.activity.dto.ActivityLogDto">
+        <selectKey keyProperty="id" resultType="String" order="BEFORE">
+            SELECT uuid_generate_v4()
+        </selectKey>
+        INSERT INTO activity_logs (
+            id, workspace_id, project_id, board_id, item_id, actor_id, action, meta, created_at
+        ) VALUES (
+            CAST(#{id} AS UUID),
+            <choose><when test="workspaceId != null">CAST(#{workspaceId} AS UUID)</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="projectId != null">CAST(#{projectId} AS UUID)</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="boardId != null">CAST(#{boardId} AS UUID)</when><otherwise>NULL</otherwise></choose>,
+            CAST(#{itemId} AS UUID),
+            CAST(#{actorId} AS UUID),
+            #{action},
+            CAST(#{meta} AS JSONB),
+            NOW()
+        )
+    </insert>
+
+</mapper>
