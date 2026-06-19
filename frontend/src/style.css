@@ -28,6 +28,13 @@
     color: var(--text-color);
     font-family: 'Inter', system-ui, sans-serif;
   }
+
+  /* select 및 option 태그 다크모드 배경색 지정 */
+  html.dark select,
+  html.dark option {
+    background-color: #1e293b;
+    color: #f8fafc;
+  }
 }
 
 @layer utilities {

@@ -1,0 +1,858 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model activity_logs {
+  id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workspace_id String?     @db.Uuid
+  project_id   String?     @db.Uuid
+  board_id     String?     @db.Uuid
+  item_id      String?     @db.Uuid
+  actor_id     String      @db.Uuid
+  action       String      @db.VarChar(50)
+  meta         Json?       @default("{}")
+  created_at   DateTime?   @default(now()) @db.Timestamptz(6)
+  users        users       @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  boards       boards?     @relation(fields: [board_id], references: [id], onUpdate: NoAction)
+  items        items?      @relation(fields: [item_id], references: [id], onUpdate: NoAction)
+  projects     projects?   @relation(fields: [project_id], references: [id], onUpdate: NoAction)
+  workspaces   workspaces? @relation(fields: [workspace_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_activity_created")
+  @@index([item_id], map: "idx_activity_item")
+  @@index([workspace_id], map: "idx_activity_workspace")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model attachments {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  item_id     String?   @db.Uuid
+  comment_id  String?   @db.Uuid
+  uploader_id String    @db.Uuid
+  file_name   String    @db.VarChar(255)
+  file_size   BigInt
+  mime_type   String?   @db.VarChar(100)
+  storage_url String    @db.VarChar(1000)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  comments    comments? @relation(fields: [comment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items       items?    @relation(fields: [item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users       users     @relation(fields: [uploader_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model automation_logs {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  automation_id String      @db.Uuid
+  item_id       String?     @db.Uuid
+  status        String      @db.VarChar(20)
+  error_message String?
+  executed_at   DateTime?   @default(now()) @db.Timestamptz(6)
+  automations   automations @relation(fields: [automation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items         items?      @relation(fields: [item_id], references: [id], onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model automations {
+  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  board_id         String            @db.Uuid
+  name             String            @db.VarChar(200)
+  is_active        Boolean?          @default(true)
+  trigger_config   Json
+  condition_config Json?             @default("{}")
+  action_config    Json
+  run_count        Int?              @default(0)
+  last_run_at      DateTime?         @db.Timestamptz(6)
+  created_by       String            @db.Uuid
+  created_at       DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?         @default(now()) @db.Timestamptz(6)
+  automation_logs  automation_logs[]
+  boards           boards            @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users            users             @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([board_id], map: "idx_automations_board")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model board_columns {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  board_id    String    @db.Uuid
+  name        String    @db.VarChar(100)
+  column_type String    @db.VarChar(30)
+  settings    Json?     @default("{}")
+  position    Int?      @default(0)
+  is_required Boolean?  @default(false)
+  is_hidden   Boolean?  @default(false)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+  boards      boards    @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model board_groups {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  board_id     String    @db.Uuid
+  title        String    @db.VarChar(200)
+  color        String?   @db.VarChar(7)
+  position     Int?      @default(0)
+  is_collapsed Boolean?  @default(false)
+  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime? @default(now()) @db.Timestamptz(6)
+  boards       boards    @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items        items[]
+
+  @@index([board_id], map: "idx_groups_board")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model board_views {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  board_id   String    @db.Uuid
+  name       String    @db.VarChar(100)
+  view_type  String    @default("board") @db.VarChar(20)
+  settings   Json?     @default("{}")
+  position   Int?      @default(0)
+  is_default Boolean?  @default(false)
+  created_by String?   @db.Uuid
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  boards     boards    @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      users?    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model boards {
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  project_id    String          @db.Uuid
+  name          String          @db.VarChar(200)
+  description   String?
+  board_type    String?         @default("main") @db.VarChar(20)
+  position      Int?            @default(0)
+  is_archived   Boolean?        @default(false)
+  created_by    String          @db.Uuid
+  created_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  activity_logs activity_logs[]
+  automations   automations[]
+  board_columns board_columns[]
+  board_groups  board_groups[]
+  board_views   board_views[]
+  users         users           @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects      projects        @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items         items[]
+
+  @@index([project_id], map: "idx_boards_project")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model comment_mentions {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  comment_id     String   @db.Uuid
+  mentioned_user String   @db.Uuid
+  comments       comments @relation(fields: [comment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users          users    @relation(fields: [mentioned_user], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([comment_id, mentioned_user])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model comments {
+  id               String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  item_id          String             @db.Uuid
+  parent_id        String?            @db.Uuid
+  author_id        String             @db.Uuid
+  body             String
+  is_edited        Boolean?           @default(false)
+  created_at       DateTime?          @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?          @default(now()) @db.Timestamptz(6)
+  attachments      attachments[]
+  comment_mentions comment_mentions[]
+  users            users              @relation(fields: [author_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  items            items              @relation(fields: [item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  comments         comments?          @relation("commentsTocomments", fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  other_comments   comments[]         @relation("commentsTocomments")
+
+  @@index([item_id], map: "idx_comments_item")
+  @@index([parent_id], map: "idx_comments_parent")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model dashboard_widgets {
+  id           String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  dashboard_id String     @db.Uuid
+  widget_type  String     @db.VarChar(30)
+  title        String?    @db.VarChar(200)
+  config       Json       @default("{}")
+  pos_x        Int?       @default(0)
+  pos_y        Int?       @default(0)
+  width        Int?       @default(4)
+  height       Int?       @default(3)
+  created_at   DateTime?  @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime?  @default(now()) @db.Timestamptz(6)
+  dashboards   dashboards @relation(fields: [dashboard_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model dashboards {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workspace_id      String              @db.Uuid
+  name              String              @db.VarChar(200)
+  is_shared         Boolean?            @default(false)
+  share_token       String?             @unique @db.VarChar(64)
+  created_by        String              @db.Uuid
+  created_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  dashboard_widgets dashboard_widgets[]
+  users             users               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workspaces        workspaces          @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([share_token], map: "idx_dashboard_share_token")
+  @@index([workspace_id], map: "idx_dashboard_workspace")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_attendance {
+  id             String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employee_id    String        @db.Uuid
+  work_date      DateTime      @db.Date
+  check_in       DateTime?     @db.Timestamptz(6)
+  check_out      DateTime?     @db.Timestamptz(6)
+  work_hours     Decimal?      @default(0) @db.Decimal(4, 1)
+  overtime_hours Decimal?      @default(0) @db.Decimal(4, 1)
+  status         String?       @default("present") @db.VarChar(20)
+  memo           String?
+  created_at     DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?     @default(now()) @db.Timestamptz(6)
+  erp_employees  erp_employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([employee_id, work_date])
+  @@index([work_date], map: "idx_erp_att_date")
+  @@index([employee_id], map: "idx_erp_att_employee")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_codes {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code_group      String   @db.VarChar(50)
+  code            String   @db.VarChar(50)
+  label           String   @db.VarChar(100)
+  sort_order      Int      @default(0)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  code_group_name String   @default("") @db.VarChar(100)
+
+  @@unique([code_group, code], map: "uq_erp_codes_group_code")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_departments {
+  id                                                         String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  parent_id                                                  String?           @db.Uuid
+  name                                                       String            @db.VarChar(200)
+  code                                                       String?           @db.VarChar(50)
+  manager_id                                                 String?           @db.Uuid
+  sort_order                                                 Int?              @default(0)
+  is_active                                                  Boolean?          @default(true)
+  created_at                                                 DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at                                                 DateTime?         @default(now()) @db.Timestamptz(6)
+  erp_departments                                            erp_departments?  @relation("erp_departmentsToerp_departments", fields: [parent_id], references: [id], onUpdate: NoAction)
+  other_erp_departments                                      erp_departments[] @relation("erp_departmentsToerp_departments")
+  erp_employees_erp_departments_manager_idToerp_employees    erp_employees?    @relation("erp_departments_manager_idToerp_employees", fields: [manager_id], references: [id], onUpdate: NoAction, map: "fk_dept_manager")
+  erp_employees_erp_employees_department_idToerp_departments erp_employees[]   @relation("erp_employees_department_idToerp_departments")
+
+  @@index([parent_id], map: "idx_erp_dept_parent")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_employees {
+  id                                                                         String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id                                                                    String?                   @db.Uuid
+  employee_no                                                                String                    @db.VarChar(50)
+  department_id                                                              String?                   @db.Uuid
+  position                                                                   String?                   @db.VarChar(50)
+  job_title                                                                  String?                   @db.VarChar(100)
+  employment_type                                                            String?                   @default("full_time") @db.VarChar(30)
+  hire_date                                                                  DateTime                  @db.Date
+  resignation_date                                                           DateTime?                 @db.Date
+  status                                                                     String?                   @default("active") @db.VarChar(20)
+  phone                                                                      String?                   @db.VarChar(50)
+  email                                                                      String?                   @db.VarChar(255)
+  emergency_contact                                                          String?                   @db.VarChar(100)
+  emergency_phone                                                            String?                   @db.VarChar(50)
+  bank_name                                                                  String?                   @db.VarChar(100)
+  bank_account                                                               String?                   @db.VarChar(100)
+  annual_leave_days                                                          Decimal?                  @default(15) @db.Decimal(4, 1)
+  memo                                                                       String?
+  created_by                                                                 String                    @db.Uuid
+  created_at                                                                 DateTime?                 @default(now()) @db.Timestamptz(6)
+  updated_at                                                                 DateTime?                 @default(now()) @db.Timestamptz(6)
+  leave_start_date                                                           DateTime?                 @db.Date
+  leave_end_date                                                             DateTime?                 @db.Date
+  birth_date                                                                 DateTime?                 @db.Date
+  erp_attendance                                                             erp_attendance[]
+  erp_departments_erp_departments_manager_idToerp_employees                  erp_departments[]         @relation("erp_departments_manager_idToerp_employees")
+  users_erp_employees_created_byTousers                                      users                     @relation("erp_employees_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  erp_departments_erp_employees_department_idToerp_departments               erp_departments?          @relation("erp_employees_department_idToerp_departments", fields: [department_id], references: [id], onUpdate: NoAction)
+  users_erp_employees_user_idTousers                                         users?                    @relation("erp_employees_user_idTousers", fields: [user_id], references: [id], onUpdate: NoAction)
+  erp_leave_balances                                                         erp_leave_balances[]
+  erp_leave_requests_erp_leave_requests_approver_idToerp_employees           erp_leave_requests[]      @relation("erp_leave_requests_approver_idToerp_employees")
+  erp_leave_requests_erp_leave_requests_employee_idToerp_employees           erp_leave_requests[]      @relation("erp_leave_requests_employee_idToerp_employees")
+  erp_payroll_items                                                          erp_payroll_items[]
+  erp_payrolls                                                               erp_payrolls[]
+  erp_performance_reviews_erp_performance_reviews_employee_idToerp_employees erp_performance_reviews[] @relation("erp_performance_reviews_employee_idToerp_employees")
+  erp_performance_reviews_erp_performance_reviews_reviewer_idToerp_employees erp_performance_reviews[] @relation("erp_performance_reviews_reviewer_idToerp_employees")
+  erp_salary_templates                                                       erp_salary_templates?
+
+  @@index([department_id], map: "idx_erp_emp_department")
+  @@index([employee_no], map: "idx_erp_emp_no")
+  @@index([status], map: "idx_erp_emp_status")
+  @@index([user_id], map: "idx_erp_emp_user")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_leave_balances {
+  id             String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employee_id    String        @db.Uuid
+  year           Int
+  total_days     Decimal       @default(15) @db.Decimal(4, 1)
+  used_days      Decimal?      @default(0) @db.Decimal(4, 1)
+  remaining_days Decimal?      @default(15) @db.Decimal(4, 1)
+  created_at     DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?     @default(now()) @db.Timestamptz(6)
+  erp_employees  erp_employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([employee_id, year])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_leave_requests {
+  id                                                          String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employee_id                                                 String         @db.Uuid
+  leave_type                                                  String         @db.VarChar(30)
+  start_date                                                  DateTime       @db.Date
+  end_date                                                    DateTime       @db.Date
+  total_days                                                  Decimal        @db.Decimal(4, 1)
+  reason                                                      String
+  status                                                      String?        @default("pending") @db.VarChar(20)
+  approver_id                                                 String?        @db.Uuid
+  approved_at                                                 DateTime?      @db.Timestamptz(6)
+  reject_reason                                               String?
+  linked_item_id                                              String?        @db.Uuid
+  created_by                                                  String         @db.Uuid
+  created_at                                                  DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at                                                  DateTime?      @default(now()) @db.Timestamptz(6)
+  erp_employees_erp_leave_requests_approver_idToerp_employees erp_employees? @relation("erp_leave_requests_approver_idToerp_employees", fields: [approver_id], references: [id], onUpdate: NoAction)
+  users                                                       users          @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  erp_employees_erp_leave_requests_employee_idToerp_employees erp_employees  @relation("erp_leave_requests_employee_idToerp_employees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items                                                       items?         @relation(fields: [linked_item_id], references: [id], onUpdate: NoAction)
+
+  @@index([start_date, end_date], map: "idx_erp_leave_dates")
+  @@index([employee_id], map: "idx_erp_leave_employee")
+  @@index([status], map: "idx_erp_leave_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_payroll_codes {
+  code           String    @id @db.VarChar(50)
+  name           String    @db.VarChar(100)
+  type           String    @db.VarChar(20)
+  is_taxable     Boolean?  @default(true)
+  tax_free_limit Decimal?  @default(0) @db.Decimal(12, 2)
+  is_system      Boolean?  @default(false)
+  is_active      Boolean?  @default(true)
+  sort_order     Int?      @default(0)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_payroll_details {
+  id                String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  payroll_item_id   String            @db.Uuid
+  code              String            @db.VarChar(50)
+  amount            Decimal?          @default(0) @db.Decimal(12, 2)
+  is_taxable        Boolean?          @default(true)
+  created_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  erp_payroll_items erp_payroll_items @relation(fields: [payroll_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([payroll_item_id, code])
+  @@index([payroll_item_id], map: "idx_erp_detail_item")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_payroll_items {
+  id                  String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  ledger_id           String                @db.Uuid
+  employee_id         String                @db.Uuid
+  gross_pay           Decimal?              @default(0) @db.Decimal(12, 2)
+  total_deduction     Decimal?              @default(0) @db.Decimal(12, 2)
+  net_pay             Decimal?              @default(0) @db.Decimal(12, 2)
+  bank_name           String?               @db.VarChar(100)
+  bank_account        String?               @db.VarChar(100)
+  bank_owner          String?               @db.VarChar(100)
+  status              String                @default("draft") @db.VarChar(20)
+  memo                String?
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  erp_payroll_details erp_payroll_details[]
+  erp_employees       erp_employees         @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  erp_payroll_ledgers erp_payroll_ledgers   @relation(fields: [ledger_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([ledger_id, employee_id])
+  @@index([employee_id], map: "idx_erp_item_employee")
+  @@index([ledger_id], map: "idx_erp_item_ledger")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_payroll_ledgers {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title             String              @db.VarChar(200)
+  pay_year          Int
+  pay_month         Int
+  pay_date          DateTime            @db.Date
+  pay_type          String              @default("정기급여") @db.VarChar(50)
+  start_date        DateTime            @db.Date
+  end_date          DateTime            @db.Date
+  status            String              @default("draft") @db.VarChar(20)
+  created_by        String              @db.Uuid
+  created_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  erp_payroll_items erp_payroll_items[]
+  users             users               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([pay_year, pay_month], map: "idx_erp_ledger_period")
+  @@index([status], map: "idx_erp_ledger_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_payrolls {
+  id                                     String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employee_id                            String        @db.Uuid
+  pay_year                               Int
+  pay_month                              Int
+  pay_date                               DateTime      @db.Date
+  base_pay                               Decimal?      @default(0) @db.Decimal(12, 2)
+  position_pay                           Decimal?      @default(0) @db.Decimal(12, 2)
+  overtime_pay                           Decimal?      @default(0) @db.Decimal(12, 2)
+  bonus_pay                              Decimal?      @default(0) @db.Decimal(12, 2)
+  meal_allowance                         Decimal?      @default(0) @db.Decimal(12, 2)
+  transportation                         Decimal?      @default(0) @db.Decimal(12, 2)
+  income_tax                             Decimal?      @default(0) @db.Decimal(12, 2)
+  local_tax                              Decimal?      @default(0) @db.Decimal(12, 2)
+  national_pension                       Decimal?      @default(0) @db.Decimal(12, 2)
+  health_insurance                       Decimal?      @default(0) @db.Decimal(12, 2)
+  employment_insurance                   Decimal?      @default(0) @db.Decimal(12, 2)
+  longterm_care                          Decimal?      @default(0) @db.Decimal(12, 2)
+  gross_pay                              Decimal?      @default(0) @db.Decimal(12, 2)
+  total_deduction                        Decimal?      @default(0) @db.Decimal(12, 2)
+  net_pay                                Decimal?      @default(0) @db.Decimal(12, 2)
+  status                                 String?       @default("draft") @db.VarChar(20)
+  confirmed_by                           String?       @db.Uuid
+  confirmed_at                           DateTime?     @db.Timestamptz(6)
+  memo                                   String?
+  created_by                             String        @db.Uuid
+  created_at                             DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at                             DateTime?     @default(now()) @db.Timestamptz(6)
+  users_erp_payrolls_confirmed_byTousers users?        @relation("erp_payrolls_confirmed_byTousers", fields: [confirmed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_erp_payrolls_created_byTousers   users         @relation("erp_payrolls_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  erp_employees                          erp_employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([employee_id, pay_year, pay_month])
+  @@index([employee_id], map: "idx_erp_payroll_employee")
+  @@index([pay_year, pay_month], map: "idx_erp_payroll_period")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_performance_reviews {
+  id                                                               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employee_id                                                      String        @db.Uuid
+  reviewer_id                                                      String        @db.Uuid
+  review_year                                                      Int
+  review_period                                                    String        @default("annual") @db.VarChar(20)
+  ratings                                                          Json          @default("{}")
+  total_score                                                      Decimal?      @db.Decimal(4, 2)
+  comment                                                          String?
+  status                                                           String?       @default("draft") @db.VarChar(20)
+  submitted_at                                                     DateTime?     @db.Timestamptz(6)
+  created_at                                                       DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at                                                       DateTime?     @default(now()) @db.Timestamptz(6)
+  erp_employees_erp_performance_reviews_employee_idToerp_employees erp_employees @relation("erp_performance_reviews_employee_idToerp_employees", fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  erp_employees_erp_performance_reviews_reviewer_idToerp_employees erp_employees @relation("erp_performance_reviews_reviewer_idToerp_employees", fields: [reviewer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([employee_id], map: "idx_erp_review_employee")
+  @@index([review_year, review_period], map: "idx_erp_review_period")
+}
+
+model erp_quotation_items {
+  id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  quotation_id   String         @db.Uuid
+  item_name      String         @db.VarChar(200)
+  spec           String?        @db.VarChar(100)
+  qty            Int?           @default(1)
+  unit_price     Decimal?       @default(0.00) @db.Decimal(15, 2)
+  supply_value   Decimal?       @default(0.00) @db.Decimal(15, 2)
+  tax_value      Decimal?       @default(0.00) @db.Decimal(15, 2)
+  remarks        String?        @db.VarChar(255)
+  sort_order     Int?           @default(0)
+  erp_quotations erp_quotations @relation(fields: [quotation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([quotation_id], map: "idx_erp_quotation_items_ref")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_quotations {
+  id                  String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  quotation_no        String                @unique @db.VarChar(50)
+  title               String                @db.VarChar(200)
+  quote_date          DateTime              @db.Date
+  valid_date          DateTime?             @db.Date
+  supplier_reg_no     String                @db.VarChar(50)
+  supplier_name       String                @db.VarChar(100)
+  supplier_ceo        String                @db.VarChar(50)
+  supplier_address    String?               @db.VarChar(255)
+  supplier_biz_type   String?               @db.VarChar(100)
+  supplier_biz_item   String?               @db.VarChar(100)
+  customer_name       String                @db.VarChar(100)
+  customer_ceo        String?               @db.VarChar(50)
+  total_supply_value  Decimal?              @default(0.00) @db.Decimal(15, 2)
+  total_tax_value     Decimal?              @default(0.00) @db.Decimal(15, 2)
+  total_amount        Decimal?              @default(0.00) @db.Decimal(15, 2)
+  remarks             String?
+  status              String?               @default("draft") @db.VarChar(20)
+  created_by          String?               @db.Uuid
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  erp_quotation_items erp_quotation_items[]
+  users               users?                @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+
+  @@index([quote_date], map: "idx_erp_quotations_date")
+  @@index([quotation_no], map: "idx_erp_quotations_no")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_salary_templates {
+  employee_id              String        @id @db.Uuid
+  base_pay                 Decimal?      @default(0) @db.Decimal(12, 2)
+  position_pay             Decimal?      @default(0) @db.Decimal(12, 2)
+  meal_allowance           Decimal?      @default(200000) @db.Decimal(12, 2)
+  car_allowance            Decimal?      @default(0) @db.Decimal(12, 2)
+  use_national_pension     Boolean?      @default(true)
+  use_health_insurance     Boolean?      @default(true)
+  use_employment_insurance Boolean?      @default(true)
+  income_tax_rate          Int?          @default(100)
+  created_at               DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime?     @default(now()) @db.Timestamptz(6)
+  erp_employees            erp_employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model erp_tax_invoice_items {
+  id               String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tax_invoice_id   String           @db.Uuid
+  item_date        String?          @db.VarChar(5)
+  item_name        String           @db.VarChar(200)
+  spec             String?          @db.VarChar(100)
+  qty              Int?             @default(1)
+  unit_price       Decimal?         @default(0.00) @db.Decimal(15, 2)
+  supply_value     Decimal?         @default(0.00) @db.Decimal(15, 2)
+  tax_value        Decimal?         @default(0.00) @db.Decimal(15, 2)
+  remarks          String?          @db.VarChar(255)
+  sort_order       Int?             @default(0)
+  erp_tax_invoices erp_tax_invoices @relation(fields: [tax_invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tax_invoice_id], map: "idx_erp_tax_invoice_items_ref")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model erp_tax_invoices {
+  id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  issue_id              String                  @unique @db.VarChar(50)
+  write_date            DateTime                @db.Date
+  supplier_reg_no       String                  @db.VarChar(50)
+  supplier_sub_no       String?                 @db.VarChar(4)
+  supplier_name         String                  @db.VarChar(100)
+  supplier_ceo          String                  @db.VarChar(50)
+  supplier_address      String?                 @db.VarChar(255)
+  supplier_biz_type     String?                 @db.VarChar(100)
+  supplier_biz_item     String?                 @db.VarChar(100)
+  supplier_email        String?                 @db.VarChar(100)
+  customer_reg_no       String                  @db.VarChar(50)
+  customer_sub_no       String?                 @db.VarChar(4)
+  customer_name         String                  @db.VarChar(100)
+  customer_ceo          String?                 @db.VarChar(50)
+  customer_address      String?                 @db.VarChar(255)
+  customer_biz_type     String?                 @db.VarChar(100)
+  customer_biz_item     String?                 @db.VarChar(100)
+  customer_email1       String?                 @db.VarChar(100)
+  total_supply_value    Decimal?                @default(0.00) @db.Decimal(15, 2)
+  total_tax_value       Decimal?                @default(0.00) @db.Decimal(15, 2)
+  total_amount          Decimal?                @default(0.00) @db.Decimal(15, 2)
+  purpose               String?                 @default("charge") @db.VarChar(10)
+  status                String?                 @default("draft") @db.VarChar(20)
+  created_by            String?                 @db.Uuid
+  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  erp_tax_invoice_items erp_tax_invoice_items[]
+  users                 users?                  @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+
+  @@index([write_date], map: "idx_erp_tax_invoices_date")
+  @@index([issue_id], map: "idx_erp_tax_invoices_issue")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model invitations {
+  id                                   String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workspace_id                         String     @db.Uuid
+  project_id                           String?    @db.Uuid
+  email                                String?    @db.VarChar(255)
+  token                                String     @unique @db.VarChar(64)
+  role                                 String?    @default("member") @db.VarChar(20)
+  invited_by                           String     @db.Uuid
+  accepted_by                          String?    @db.Uuid
+  expires_at                           DateTime   @db.Timestamptz(6)
+  accepted_at                          DateTime?  @db.Timestamptz(6)
+  created_at                           DateTime?  @default(now()) @db.Timestamptz(6)
+  users_invitations_accepted_byTousers users?     @relation("invitations_accepted_byTousers", fields: [accepted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_invitations_invited_byTousers  users      @relation("invitations_invited_byTousers", fields: [invited_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects                             projects?  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workspaces                           workspaces @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model item_values {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  item_id      String    @db.Uuid
+  column_id    String    @db.Uuid
+  value_text   String?
+  value_number Decimal?  @db.Decimal
+  value_date   DateTime? @db.Date
+  value_json   Json?
+  updated_by   String?   @db.Uuid
+  updated_at   DateTime? @default(now()) @db.Timestamptz(6)
+  items        items     @relation(fields: [item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users?    @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([item_id, column_id])
+  @@index([column_id], map: "idx_item_values_column")
+  @@index([item_id], map: "idx_item_values_item")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model items {
+  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  board_id           String               @db.Uuid
+  group_id           String               @db.Uuid
+  parent_item_id     String?              @db.Uuid
+  name               String               @db.VarChar(500)
+  position           Int?                 @default(0)
+  is_archived        Boolean?             @default(false)
+  created_by         String               @db.Uuid
+  created_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  activity_logs      activity_logs[]
+  attachments        attachments[]
+  automation_logs    automation_logs[]
+  comments           comments[]
+  erp_leave_requests erp_leave_requests[]
+  item_values        item_values[]
+  boards             boards               @relation(fields: [board_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  board_groups       board_groups         @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items              items?               @relation("itemsToitems", fields: [parent_item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  other_items        items[]              @relation("itemsToitems")
+
+  @@index([board_id], map: "idx_items_board")
+  @@index([group_id], map: "idx_items_group")
+  @@index([parent_item_id], map: "idx_items_parent")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model notifications {
+  id                                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  recipient_id                            String    @db.Uuid
+  sender_id                               String?   @db.Uuid
+  type                                    String    @db.VarChar(50)
+  title                                   String    @db.VarChar(300)
+  body                                    String?
+  ref_type                                String?   @db.VarChar(30)
+  ref_id                                  String?   @db.Uuid
+  is_read                                 Boolean?  @default(false)
+  created_at                              DateTime? @default(now()) @db.Timestamptz(6)
+  users_notifications_recipient_idTousers users     @relation("notifications_recipient_idTousers", fields: [recipient_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_notifications_sender_idTousers    users?    @relation("notifications_sender_idTousers", fields: [sender_id], references: [id], onUpdate: NoAction)
+
+  @@index([recipient_id, is_read, created_at(sort: Desc)], map: "idx_notifications_recipient")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model oauth_accounts {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id       String    @db.Uuid
+  provider      String    @db.VarChar(30)
+  provider_uid  String    @db.VarChar(255)
+  access_token  String?
+  refresh_token String?
+  expires_at    DateTime? @db.Timestamptz(6)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([provider, provider_uid])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model project_members {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  project_id String    @db.Uuid
+  user_id    String    @db.Uuid
+  role       String?   @default("member") @db.VarChar(20)
+  joined_at  DateTime? @default(now()) @db.Timestamptz(6)
+  projects   projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([project_id, user_id])
+  @@index([project_id], map: "idx_project_members_project")
+  @@index([user_id], map: "idx_project_members_user")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model projects {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workspace_id    String            @db.Uuid
+  team_id         String?           @db.Uuid
+  name            String            @db.VarChar(200)
+  description     String?
+  color           String?           @db.VarChar(7)
+  icon            String?           @db.VarChar(50)
+  is_archived     Boolean?          @default(false)
+  created_by      String            @db.Uuid
+  created_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  activity_logs   activity_logs[]
+  boards          boards[]
+  invitations     invitations[]
+  project_members project_members[]
+  users           users             @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teams           teams?            @relation(fields: [team_id], references: [id], onUpdate: NoAction)
+  workspaces      workspaces        @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([workspace_id], map: "idx_projects_workspace")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model team_members {
+  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  team_id   String    @db.Uuid
+  user_id   String    @db.Uuid
+  role      String?   @default("member") @db.VarChar(20)
+  joined_at DateTime? @default(now()) @db.Timestamptz(6)
+  teams     teams     @relation(fields: [team_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users     users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([team_id, user_id])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model teams {
+  id           String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workspace_id String         @db.Uuid
+  name         String         @db.VarChar(100)
+  description  String?
+  color        String?        @db.VarChar(7)
+  created_by   String         @db.Uuid
+  created_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  projects     projects[]
+  team_members team_members[]
+  users        users          @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workspaces   workspaces     @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model users {
+  id                                                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email                                                 String                @unique @db.VarChar(255)
+  password_hash                                         String?               @db.VarChar(255)
+  full_name                                             String                @db.VarChar(100)
+  avatar_url                                            String?               @db.VarChar(500)
+  timezone                                              String?               @default("Asia/Seoul") @db.VarChar(50)
+  is_active                                             Boolean?              @default(true)
+  last_login_at                                         DateTime?             @db.Timestamptz(6)
+  created_at                                            DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at                                            DateTime?             @default(now()) @db.Timestamptz(6)
+  role                                                  String?               @default("member") @db.VarChar(20)
+  member_status                                         String?               @default("pending") @db.VarChar(20)
+  theme                                                 String?               @default("dark") @db.VarChar(20)
+  activity_logs                                         activity_logs[]
+  attachments                                           attachments[]
+  automations                                           automations[]
+  board_views                                           board_views[]
+  boards                                                boards[]
+  comment_mentions                                      comment_mentions[]
+  comments                                              comments[]
+  dashboards                                            dashboards[]
+  erp_employees_erp_employees_created_byTousers         erp_employees[]       @relation("erp_employees_created_byTousers")
+  erp_employees_erp_employees_user_idTousers            erp_employees[]       @relation("erp_employees_user_idTousers")
+  erp_leave_requests                                    erp_leave_requests[]
+  erp_payroll_ledgers                                   erp_payroll_ledgers[]
+  erp_payrolls_erp_payrolls_confirmed_byTousers         erp_payrolls[]        @relation("erp_payrolls_confirmed_byTousers")
+  erp_payrolls_erp_payrolls_created_byTousers           erp_payrolls[]        @relation("erp_payrolls_created_byTousers")
+  erp_quotations                                        erp_quotations[]
+  erp_tax_invoices                                      erp_tax_invoices[]
+  invitations_invitations_accepted_byTousers            invitations[]         @relation("invitations_accepted_byTousers")
+  invitations_invitations_invited_byTousers             invitations[]         @relation("invitations_invited_byTousers")
+  item_values                                           item_values[]
+  items                                                 items[]
+  notifications_notifications_recipient_idTousers       notifications[]       @relation("notifications_recipient_idTousers")
+  notifications_notifications_sender_idTousers          notifications[]       @relation("notifications_sender_idTousers")
+  oauth_accounts                                        oauth_accounts[]
+  project_members                                       project_members[]
+  projects                                              projects[]
+  team_members                                          team_members[]
+  teams                                                 teams[]
+  workspace_members_workspace_members_invited_byTousers workspace_members[]   @relation("workspace_members_invited_byTousers")
+  workspace_members_workspace_members_user_idTousers    workspace_members[]   @relation("workspace_members_user_idTousers")
+  workspaces                                            workspaces[]
+
+  @@index([email], map: "idx_users_email")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model workspace_members {
+  id                                        String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workspace_id                              String     @db.Uuid
+  user_id                                   String     @db.Uuid
+  role                                      String     @default("member") @db.VarChar(20)
+  invited_by                                String?    @db.Uuid
+  joined_at                                 DateTime?  @default(now()) @db.Timestamptz(6)
+  users_workspace_members_invited_byTousers users?     @relation("workspace_members_invited_byTousers", fields: [invited_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_workspace_members_user_idTousers    users      @relation("workspace_members_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workspaces                                workspaces @relation(fields: [workspace_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([workspace_id, user_id])
+  @@index([user_id], map: "idx_ws_members_user")
+  @@index([workspace_id], map: "idx_ws_members_workspace")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model workspaces {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name              String              @db.VarChar(100)
+  slug              String              @unique @db.VarChar(100)
+  logo_url          String?             @db.VarChar(500)
+  plan              String?             @default("free") @db.VarChar(20)
+  owner_id          String              @db.Uuid
+  created_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  activity_logs     activity_logs[]
+  dashboards        dashboards[]
+  invitations       invitations[]
+  projects          projects[]
+  teams             teams[]
+  workspace_members workspace_members[]
+  users             users               @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
